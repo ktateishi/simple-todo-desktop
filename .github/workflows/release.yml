@@ -17,7 +17,7 @@ jobs:
           - os: macos-latest   # Apple Silicon (M1/M2/M3)
             rust-target: aarch64-apple-darwin
             args: --target aarch64-apple-darwin
-          - os: macos-13       # Intel Mac
+          - os: macos-latest   # Intel Mac (cross-compile from Apple Silicon)
             rust-target: x86_64-apple-darwin
             args: --target x86_64-apple-darwin
           - os: windows-latest
