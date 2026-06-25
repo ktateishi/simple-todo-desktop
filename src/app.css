@@ -1,0 +1,135 @@
+/* ─── Design Tokens ─────────────────────────────────────────────────────── */
+
+:root, [data-theme="airy"] {
+  --bg:          #F8F7F5;
+  --sidebar-bg:  #EDECEA;
+  --surface:     #FFFFFF;
+  --hover:       #F2F0ED;
+
+  --border:       #DDDBD4;
+  --border-light: #E8E6DF;
+
+  --text:       #1C1917;
+  --text-muted: #78736F;
+
+  --accent:      #5753E8;
+  --accent-soft: #EEEFFE;
+
+  --danger:      #DC2626;
+  --danger-soft: #FEF2F2;
+  --success:     #16A34A;
+  --warning:     #D97706;
+}
+
+[data-theme="noir"] {
+  --bg:          #0E0E11;
+  --sidebar-bg:  #141418;
+  --surface:     #16161F;
+  --hover:       #1C1C28;
+
+  --border:       #22222E;
+  --border-light: #1A1A24;
+
+  --text:       #E4E4EC;
+  --text-muted: #5E5E74;
+
+  --accent:      #5B8AF5;
+  --accent-soft: #141C38;
+
+  --danger:      #F87171;
+  --danger-soft: #2D1515;
+  --success:     #4ADE80;
+  --warning:     #FBBF24;
+}
+
+[data-theme="dusk"] {
+  --bg:          #130F0C;
+  --sidebar-bg:  #1C1713;
+  --surface:     #1B1712;
+  --hover:       #231D17;
+
+  --border:       #2E2820;
+  --border-light: #241E18;
+
+  --text:       #EBE5DC;
+  --text-muted: #7D7268;
+
+  --accent:      #D97706;
+  --accent-soft: #2B200A;
+
+  --danger:      #F87171;
+  --danger-soft: #2D1515;
+  --success:     #4ADE80;
+  --warning:     #FBBF24;
+}
+
+[data-theme="ash"] {
+  --bg:          #0A0A0A;
+  --sidebar-bg:  #0F0F0F;
+  --surface:     #121212;
+  --hover:       #1A1A1A;
+
+  --border:       #202020;
+  --border-light: #181818;
+
+  --text:       #D4D4D4;
+  --text-muted: #525252;
+
+  --accent:      #737373;
+  --accent-soft: #1C1C1C;
+
+  --danger:      #EF4444;
+  --danger-soft: #2A1010;
+  --success:     #22C55E;
+  --warning:     #EAB308;
+}
+
+[data-theme="bloom"] {
+  --bg:          #F8F7F5;
+  --sidebar-bg:  #F2EFF2;
+  --surface:     #FFFFFF;
+  --hover:       #FDF2F4;
+
+  --border:       #E4D8DB;
+  --border-light: #EEE4E7;
+
+  --text:       #1C1117;
+  --text-muted: #7A6470;
+
+  --accent:      #F43F5E;
+  --accent-soft: #FFF1F2;
+
+  --danger:      #DC2626;
+  --danger-soft: #FEF2F2;
+  --success:     #16A34A;
+  --warning:     #D97706;
+}
+
+/* ─── Base ──────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter Variable', 'Inter', 'Hiragino Sans', 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  font-feature-settings: 'cv11', 'ss01';
+  -webkit-font-smoothing: antialiased;
+}
+
+button, input, select, textarea {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+button { border: none; background: none; cursor: pointer; }
+
+a { color: var(--accent); text-decoration: none; }
+
+/* ─── Scrollbar ──────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }

@@ -1,0 +1,82 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest   # Apple Silicon (M1/M2/M3)
+            rust-target: aarch64-apple-darwin
+            args: --target aarch64-apple-darwin
+          - os: macos-13       # Intel Mac
+            rust-target: x86_64-apple-darwin
+            args: --target x86_64-apple-darwin
+          - os: windows-latest
+            rust-target: ''
+            args: ''
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust-target }}
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - name: Install frontend dependencies
+        run: pnpm install
+
+      - name: Build & publish to GitHub Releases
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: Simple TODO ${{ github.ref_name }}
+          releaseBody: |
+            ## ダウンロード
+
+            ### macOS
+            | 種別 | ファイル |
+            |---|---|
+            | Apple Silicon (M1 / M2 / M3) | `*_aarch64.dmg` |
+            | Intel Mac | `*_x86_64.dmg` |
+
+            > ダウンロード後、Gatekeeper の警告が表示された場合は
+            > システム設定 → プライバシーとセキュリティ → 「このまま開く」を選択してください。
+
+            ### Windows
+            | 種別 | ファイル |
+            |---|---|
+            | インストーラー (推奨) | `*_x64-setup.exe` |
+            | MSI | `*_x64_en-US.msi` |
+
+            ---
+            ## 変更内容
+            https://github.com/${{ github.repository }}/commits/${{ github.ref_name }}
+          releaseDraft: false
+          prerelease: false
+          args: ${{ matrix.args }}

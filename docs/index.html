@@ -1,0 +1,1191 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simple TODO — シンプルで、強力なデスクトップ TODO</title>
+<meta name="description" content="Tauri製 macOS向け高機能 TODO アプリ。今日のタスクを最上段に表示、ステータス管理、グループ＆タグ、リマインド通知など多彩な機能をシンプルなUIに凝縮。">
+<meta property="og:title" content="Simple TODO — シンプルで、強力なデスクトップ TODO">
+<meta property="og:description" content="macOS向け高機能TODOアプリ。タスク管理をシンプルかつパワフルに。">
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root {
+  --bg:       #09090b;
+  --bg2:      #111113;
+  --surface:  #18181b;
+  --surface2: #27272a;
+  --border:   #3f3f46;
+  --border2:  #52525b;
+  --accent:   #6366f1;
+  --accent2:  #818cf8;
+  --text:     #fafafa;
+  --muted:    #a1a1aa;
+  --dim:      #71717a;
+  --success:  #22c55e;
+  --warning:  #f59e0b;
+  --danger:   #ef4444;
+  --purple:   #a78bfa;
+  --radius:   12px;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic UI", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Utility ── */
+.container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+.badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight: 500; letter-spacing: 0.04em; }
+
+/* ── Nav ── */
+nav {
+  position: sticky; top: 0; z-index: 100;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  background: rgba(9,9,11,0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.nav-inner {
+  display: flex; align-items: center; gap: 32px;
+  padding: 14px 24px;
+  max-width: 1100px; margin: 0 auto;
+}
+.nav-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+.nav-logo-icon {
+  width: 30px; height: 30px; border-radius: 7px;
+  background: var(--accent);
+  display: flex; align-items: center; justify-content: center;
+}
+.nav-logo-icon svg { width: 18px; height: 18px; }
+.nav-logo-text { font-size: 15px; font-weight: 600; color: var(--text); letter-spacing: -0.02em; }
+.nav-links { display: flex; gap: 24px; margin-left: auto; }
+.nav-links a { color: var(--muted); text-decoration: none; font-size: 14px; transition: color .15s; }
+.nav-links a:hover { color: var(--text); }
+.nav-cta {
+  padding: 7px 16px; border-radius: 8px;
+  background: var(--accent); color: #fff;
+  font-size: 14px; font-weight: 500; text-decoration: none;
+  transition: opacity .15s;
+  white-space: nowrap;
+}
+.nav-cta:hover { opacity: .85; }
+
+/* ── Hero ── */
+.hero {
+  padding: 96px 24px 80px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+.hero::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse 80% 60% at 50% -10%, rgba(99,102,241,.18) 0%, transparent 70%);
+  pointer-events: none;
+}
+.hero-badge {
+  background: rgba(99,102,241,.12);
+  border: 1px solid rgba(99,102,241,.3);
+  color: var(--accent2);
+  margin: 0 auto 28px;
+}
+.hero h1 {
+  font-size: clamp(36px, 6vw, 68px);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1.1;
+  margin-bottom: 20px;
+  background: linear-gradient(135deg, #fff 30%, rgba(255,255,255,.55));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.hero-sub {
+  font-size: clamp(16px, 2vw, 20px);
+  color: var(--muted);
+  max-width: 560px;
+  margin: 0 auto 40px;
+  line-height: 1.7;
+}
+.hero-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.btn-primary {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 12px 28px; border-radius: var(--radius);
+  background: var(--accent); color: #fff;
+  font-size: 15px; font-weight: 600; text-decoration: none;
+  transition: opacity .15s, transform .15s;
+  border: none; cursor: pointer;
+}
+.btn-primary:hover { opacity: .9; transform: translateY(-1px); }
+.btn-secondary {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 12px 28px; border-radius: var(--radius);
+  background: transparent; color: var(--text);
+  font-size: 15px; font-weight: 500; text-decoration: none;
+  border: 1px solid var(--border2);
+  transition: background .15s, border-color .15s;
+}
+.btn-secondary:hover { background: var(--surface); border-color: var(--muted); }
+
+/* ── App Mockup ── */
+.mockup-wrap {
+  margin: 64px auto 0;
+  max-width: 900px;
+  position: relative;
+}
+.mockup-glow {
+  position: absolute; inset: -40px;
+  background: radial-gradient(ellipse 60% 40% at 50% 50%, rgba(99,102,241,.15), transparent 70%);
+  pointer-events: none;
+}
+.app-window {
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: #111113;
+  overflow: hidden;
+  box-shadow: 0 32px 80px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.04);
+}
+.window-chrome {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 16px;
+  background: #1a1a1e;
+  border-bottom: 1px solid var(--border);
+}
+.traffic { width: 12px; height: 12px; border-radius: 50%; }
+.t-red    { background: #ff5f57; }
+.t-yellow { background: #febc2e; }
+.t-green  { background: #28c840; }
+.chrome-title {
+  flex: 1; text-align: center;
+  font-size: 12px; color: var(--dim);
+  font-weight: 500; letter-spacing: 0.01em;
+}
+.app-body { display: flex; height: 440px; }
+
+.app-sidebar {
+  width: 190px; flex-shrink: 0;
+  background: #141416;
+  border-right: 1px solid var(--border);
+  padding: 10px 0;
+  font-size: 12px;
+  overflow: hidden;
+}
+.sb-search {
+  display: flex; align-items: center; gap: 6px;
+  margin: 0 8px 10px;
+  padding: 5px 8px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--dim);
+  font-size: 11px;
+}
+.sb-section { margin-bottom: 8px; }
+.sb-label {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 4px 10px 3px;
+  font-size: 10px; font-weight: 600; color: var(--dim);
+  text-transform: uppercase; letter-spacing: 0.07em;
+}
+.sb-item {
+  display: flex; align-items: center; gap: 7px;
+  padding: 5px 10px;
+  border-radius: 0;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--muted);
+  transition: background .1s;
+}
+.sb-item:hover { background: var(--surface2); }
+.sb-item.active {
+  background: rgba(99,102,241,.12);
+  color: var(--accent2);
+}
+.sb-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+.app-main { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+
+.quick-add-bar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: #16161a;
+  flex-shrink: 0;
+}
+.qa-select {
+  width: 110px; padding: 4px 7px;
+  border: 1px solid var(--border); border-radius: 6px;
+  background: var(--bg); color: var(--muted);
+  font-size: 11px; flex-shrink: 0;
+}
+.qa-input {
+  flex: 1; padding: 5px 8px;
+  border: 1px solid var(--border); border-radius: 6px;
+  background: var(--bg); color: var(--muted);
+  font-size: 11px;
+}
+.qa-btn {
+  padding: 5px 10px; border-radius: 6px;
+  background: var(--accent); color: #fff;
+  font-size: 11px; font-weight: 600;
+  white-space: nowrap; border: none; cursor: pointer;
+}
+
+.sort-bar {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 12px;
+  border-bottom: 1px solid var(--border);
+  background: #141416;
+  flex-shrink: 0;
+}
+.sort-bar-label { font-size: 10px; color: var(--dim); margin-right: 2px; }
+.sort-chip {
+  padding: 2px 8px; border-radius: 5px;
+  font-size: 10px; color: var(--muted);
+  border: 1px solid var(--border); background: transparent;
+  cursor: pointer;
+}
+.sort-chip.active {
+  background: rgba(99,102,241,.12); color: var(--accent2);
+  border-color: rgba(99,102,241,.3);
+}
+
+.task-scroll { flex: 1; overflow-y: auto; }
+.task-scroll::-webkit-scrollbar { width: 4px; }
+.task-scroll::-webkit-scrollbar-track { background: transparent; }
+.task-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.section-header {
+  display: flex; align-items: center; gap: 7px;
+  padding: 6px 12px;
+  background: #16161a;
+  border-bottom: 1px solid var(--border);
+  border-top: 1px solid var(--border);
+}
+.section-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.section-name { font-size: 11px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; flex: 1; }
+.section-count { font-size: 10px; color: var(--dim); background: var(--surface2); border-radius: 8px; padding: 1px 6px; }
+
+.task-item {
+  display: flex; align-items: center; gap: 7px;
+  padding: 7px 12px 7px 10px;
+  border-bottom: 1px solid rgba(255,255,255,.04);
+  border-left: 3px solid transparent;
+  font-size: 12px;
+  background: #111113;
+  transition: background .1s;
+}
+.task-item:hover { background: #18181b; }
+.task-item.priority-high   { border-left-color: var(--danger); }
+.task-item.priority-medium { border-left-color: var(--warning); }
+.task-item.priority-low    { border-left-color: #3b82f6; }
+.task-item.done { opacity: .45; }
+.task-item.done .task-title { text-decoration: line-through; }
+
+.task-circle {
+  width: 16px; height: 16px; border-radius: 50%;
+  border: 1.5px solid var(--border2);
+  flex-shrink: 0; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: border-color .1s;
+}
+.task-circle:hover { border-color: var(--success); }
+.task-circle.done {
+  background: var(--success); border-color: var(--success);
+}
+.task-circle.done::after {
+  content: '';
+  width: 5px; height: 3px;
+  border-left: 1.5px solid #fff; border-bottom: 1.5px solid #fff;
+  transform: rotate(-45deg) translateY(-1px);
+  display: block;
+}
+
+.status-badge {
+  font-size: 9px; font-weight: 600; padding: 1px 6px;
+  border-radius: 8px; border: 1px solid transparent;
+  flex-shrink: 0; letter-spacing: 0.02em;
+}
+.s-todo    { background: rgba(255,255,255,.06); color: var(--dim); border-color: var(--border); }
+.s-doing   { background: rgba(245,158,11,.12); color: var(--warning); border-color: rgba(245,158,11,.3); }
+.s-pending { background: rgba(167,139,250,.12); color: var(--purple); border-color: rgba(167,139,250,.3); }
+.s-done    { background: rgba(34,197,94,.12); color: var(--success); border-color: rgba(34,197,94,.3); }
+
+.task-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+.task-due { font-size: 10px; color: var(--dim); white-space: nowrap; }
+.task-due.overdue { color: var(--danger); }
+.task-group-badge {
+  font-size: 9px; font-weight: 500; padding: 1px 6px;
+  border-radius: 8px; white-space: nowrap;
+}
+.drag-handle { color: var(--border); font-size: 10px; letter-spacing: -1px; cursor: grab; flex-shrink: 0; }
+
+/* ── Features (3 columns) ── */
+.features { padding: 96px 24px; }
+.section-label { display: flex; align-items: center; justify-content: center; margin-bottom: 16px; }
+.section-label span {
+  background: rgba(99,102,241,.12); border: 1px solid rgba(99,102,241,.3);
+  color: var(--accent2); font-size: 12px; font-weight: 500; letter-spacing: 0.06em;
+  padding: 4px 14px; border-radius: 999px; text-transform: uppercase;
+}
+.section-heading {
+  text-align: center; font-size: clamp(28px, 4vw, 44px); font-weight: 700;
+  letter-spacing: -0.03em; line-height: 1.15; margin-bottom: 16px;
+}
+.section-sub { text-align: center; color: var(--muted); font-size: 17px; max-width: 520px; margin: 0 auto 56px; }
+
+.feature-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px;
+}
+.feature-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px;
+  transition: border-color .2s, background .2s;
+}
+.feature-card:hover { border-color: var(--border2); background: #1e1e22; }
+.feature-icon {
+  width: 44px; height: 44px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 18px; font-size: 22px;
+}
+.icon-indigo  { background: rgba(99,102,241,.15);  }
+.icon-green   { background: rgba(34,197,94,.15);   }
+.icon-amber   { background: rgba(245,158,11,.15);  }
+.icon-purple  { background: rgba(167,139,250,.15); }
+.icon-blue    { background: rgba(59,130,246,.15);  }
+.icon-red     { background: rgba(239,68,68,.15);   }
+.feature-card h3 { font-size: 17px; font-weight: 600; letter-spacing: -0.02em; margin-bottom: 8px; }
+.feature-card p  { font-size: 14px; color: var(--muted); line-height: 1.65; }
+
+/* ── Spotlight ── */
+.spotlight { padding: 80px 24px; }
+.spotlight-inner {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center;
+  max-width: 1100px; margin: 0 auto;
+}
+.spotlight-inner.reverse { direction: rtl; }
+.spotlight-inner.reverse > * { direction: ltr; }
+.spotlight-text {}
+.spotlight-kicker {
+  font-size: 12px; font-weight: 600; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--accent2); margin-bottom: 12px;
+}
+.spotlight-text h2 { font-size: clamp(24px, 3vw, 36px); font-weight: 700; letter-spacing: -0.03em; line-height: 1.2; margin-bottom: 16px; }
+.spotlight-text p { font-size: 15px; color: var(--muted); line-height: 1.75; margin-bottom: 20px; }
+.feature-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+.feature-list li {
+  display: flex; align-items: flex-start; gap: 10px;
+  font-size: 14px; color: var(--muted); line-height: 1.5;
+}
+.feature-list li::before {
+  content: '✓'; flex-shrink: 0;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: rgba(34,197,94,.15); color: var(--success);
+  font-size: 10px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  margin-top: 2px;
+}
+
+.mini-mockup {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.mini-chrome {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 12px;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+}
+.mini-chrome .traffic { width: 8px; height: 8px; }
+
+/* ── All Features Grid ── */
+.all-features { padding: 80px 24px; background: var(--bg2); }
+.chip-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+.chip {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 18px; border-radius: var(--radius);
+  background: var(--surface); border: 1px solid var(--border);
+  transition: border-color .2s;
+}
+.chip:hover { border-color: var(--border2); }
+.chip-emoji { font-size: 20px; flex-shrink: 0; line-height: 1; margin-top: 2px; }
+.chip-body h4 { font-size: 13px; font-weight: 600; margin-bottom: 3px; }
+.chip-body p  { font-size: 12px; color: var(--dim); line-height: 1.5; }
+
+/* ── Download ── */
+.download { padding: 120px 24px; text-align: center; position: relative; overflow: hidden; }
+.download::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse 70% 50% at 50% 100%, rgba(99,102,241,.12), transparent 70%);
+  pointer-events: none;
+}
+.download h2 { font-size: clamp(28px, 4vw, 48px); font-weight: 700; letter-spacing: -0.03em; margin-bottom: 16px; }
+.download > .container > p { font-size: 17px; color: var(--muted); margin-bottom: 16px; max-width: 480px; margin-left: auto; margin-right: auto; }
+
+.version-badge {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 5px 14px; border-radius: 999px; margin-bottom: 48px;
+  background: rgba(99,102,241,.1); border: 1px solid rgba(99,102,241,.25);
+  font-size: 13px; font-weight: 500; color: var(--accent2);
+}
+.version-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); }
+#version-text { font-variant-numeric: tabular-nums; }
+
+.platform-cards {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px; max-width: 720px; margin: 0 auto 32px; text-align: left;
+}
+.platform-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 16px; padding: 28px;
+  transition: border-color .2s;
+}
+.platform-card:hover { border-color: var(--border2); }
+.platform-card-header {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 20px;
+}
+.platform-icon {
+  width: 40px; height: 40px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; flex-shrink: 0;
+}
+.platform-card-title { font-size: 16px; font-weight: 600; letter-spacing: -0.02em; }
+.platform-card-sub   { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+.dl-btn {
+  display: flex; align-items: center; gap: 9px;
+  width: 100%; padding: 10px 16px; border-radius: 10px;
+  background: var(--surface2); border: 1px solid var(--border);
+  color: var(--text); text-decoration: none;
+  font-size: 13px; font-weight: 500; margin-bottom: 8px;
+  transition: background .15s, border-color .15s;
+  cursor: pointer;
+}
+.dl-btn:last-child { margin-bottom: 0; }
+.dl-btn:hover { background: #2a2a30; border-color: var(--border2); }
+.dl-btn.primary-dl {
+  background: var(--accent); border-color: var(--accent); color: #fff;
+}
+.dl-btn.primary-dl:hover { opacity: .9; }
+.dl-btn-icon { width: 30px; height: 30px; border-radius: 7px; background: rgba(255,255,255,.1); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.dl-btn-info { flex: 1; min-width: 0; }
+.dl-btn-label { font-size: 13px; font-weight: 600; }
+.dl-btn-sub   { font-size: 11px; opacity: .65; }
+.dl-badge {
+  font-size: 10px; font-weight: 600; padding: 2px 7px;
+  border-radius: 5px; background: rgba(34,197,94,.15); color: var(--success);
+  white-space: nowrap;
+}
+
+.releases-link { font-size: 13px; color: var(--dim); }
+.releases-link a { color: var(--accent2); text-decoration: none; }
+.releases-link a:hover { text-decoration: underline; }
+
+@media (max-width: 600px) {
+  .platform-cards { grid-template-columns: 1fr; }
+}
+
+/* ── Footer ── */
+footer {
+  border-top: 1px solid var(--border);
+  padding: 40px 24px;
+}
+.footer-inner {
+  display: flex; align-items: center; justify-content: space-between;
+  max-width: 1100px; margin: 0 auto; flex-wrap: wrap; gap: 16px;
+}
+.footer-left { display: flex; align-items: center; gap: 12px; }
+.footer-logo { display: flex; align-items: center; gap: 8px; text-decoration: none; }
+.footer-logo-icon { width: 22px; height: 22px; border-radius: 5px; background: var(--accent); display: flex; align-items: center; justify-content: center; }
+.footer-logo-icon svg { width: 12px; height: 12px; }
+.footer-name { font-size: 13px; font-weight: 600; color: var(--text); }
+.footer-copy { font-size: 12px; color: var(--dim); }
+.footer-links { display: flex; gap: 20px; }
+.footer-links a { font-size: 13px; color: var(--dim); text-decoration: none; transition: color .15s; }
+.footer-links a:hover { color: var(--muted); }
+
+/* ── Stack badge ── */
+.stack-line { display: flex; gap: 8px; justify-content: center; margin-bottom: 48px; flex-wrap: wrap; }
+.stack-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 10px; border-radius: 6px;
+  background: var(--surface2); border: 1px solid var(--border);
+  font-size: 11px; font-weight: 500; color: var(--muted);
+}
+
+/* ── Scroll animation ── */
+.reveal { opacity: 0; transform: translateY(20px); transition: opacity .55s ease, transform .55s ease; }
+.reveal.visible { opacity: 1; transform: none; }
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .spotlight-inner { grid-template-columns: 1fr; gap: 40px; }
+  .spotlight-inner.reverse { direction: ltr; }
+  .nav-links { display: none; }
+  .app-sidebar { display: none; }
+}
+@media (max-width: 560px) {
+  .feature-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══ Nav ══ -->
+<nav>
+  <div class="nav-inner">
+    <a href="#" class="nav-logo">
+      <div class="nav-logo-icon">
+        <svg viewBox="0 0 18 18" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 5h12M3 9h8M3 13h10"/>
+          <circle cx="14" cy="13" r="2.5" fill="#fff" stroke="none"/>
+        </svg>
+      </div>
+      <span class="nav-logo-text">Simple TODO</span>
+    </a>
+    <div class="nav-links">
+      <a href="#features">機能</a>
+      <a href="#all-features">詳細</a>
+      <a href="#download">ダウンロード</a>
+      <a href="https://github.com/ktateishi/simple-todo" target="_blank" rel="noopener">GitHub</a>
+    </div>
+    <a href="#download" class="nav-cta">無料ダウンロード</a>
+  </div>
+</nav>
+
+<!-- ══ Hero ══ -->
+<section class="hero">
+  <div class="badge hero-badge">🎯 macOS 向けデスクトップ TODO アプリ</div>
+
+  <h1>タスク管理を、<br>もっとシンプルに。</h1>
+
+  <p class="hero-sub">
+    今日やるべきことを最上段に表示。ステータス管理、グループ＆タグ、
+    スマートリマインド——あらゆる機能をひとつのシンプルなUIに。
+  </p>
+
+  <div class="stack-line">
+    <span class="stack-badge">⚡ Tauri v2</span>
+    <span class="stack-badge">🦀 Rust</span>
+    <span class="stack-badge">🎨 Svelte 5</span>
+    <span class="stack-badge">🗄️ SQLite</span>
+  </div>
+
+  <div class="hero-btns">
+    <a href="#download" class="btn-primary">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      無料ダウンロード
+    </a>
+    <a href="https://github.com/ktateishi/simple-todo" target="_blank" rel="noopener" class="btn-secondary">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33.85 0 1.71.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2z"/></svg>
+      GitHub で見る
+    </a>
+  </div>
+
+  <!-- App window mockup -->
+  <div class="mockup-wrap reveal">
+    <div class="mockup-glow"></div>
+    <div class="app-window">
+      <div class="window-chrome">
+        <span class="traffic t-red"></span>
+        <span class="traffic t-yellow"></span>
+        <span class="traffic t-green"></span>
+        <span class="chrome-title">Simple TODO</span>
+      </div>
+      <div class="app-body">
+
+        <!-- Sidebar -->
+        <div class="app-sidebar">
+          <div class="sb-search">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            検索…
+          </div>
+          <div class="sb-section">
+            <div class="sb-label"><span>ビュー</span></div>
+            <div class="sb-item active">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              すべてのタスク
+            </div>
+            <div class="sb-item">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              今日
+            </div>
+          </div>
+          <div class="sb-section">
+            <div class="sb-label"><span>グループ</span></div>
+            <div class="sb-item">
+              <span class="sb-dot" style="background:#6366f1"></span>仕事
+            </div>
+            <div class="sb-item">
+              <span class="sb-dot" style="background:#22c55e"></span>プライベート
+            </div>
+            <div class="sb-item">
+              <span class="sb-dot" style="background:#f59e0b"></span>買い物リスト
+            </div>
+          </div>
+          <div class="sb-section">
+            <div class="sb-label"><span>タグ</span></div>
+            <div class="sb-item">
+              <span class="sb-dot" style="background:#a78bfa"></span>#急ぎ
+            </div>
+            <div class="sb-item">
+              <span class="sb-dot" style="background:#38bdf8"></span>#レビュー待ち
+            </div>
+          </div>
+        </div>
+
+        <!-- Main area -->
+        <div class="app-main">
+          <!-- QuickAdd -->
+          <div class="quick-add-bar">
+            <div class="qa-select">仕事 ▾</div>
+            <div class="qa-input">タスクを追加… (#タグ で分類)</div>
+            <div class="qa-btn">＋ 追加</div>
+          </div>
+          <!-- Sort bar -->
+          <div class="sort-bar">
+            <span class="sort-bar-label">並び替え</span>
+            <div class="sort-chip active">手動</div>
+            <div class="sort-chip">近い順</div>
+            <div class="sort-chip">遠い順</div>
+            <div class="sort-chip">優先度順</div>
+            <span style="margin-left:auto"></span>
+            <div class="sort-chip active">グループ</div>
+            <div class="sort-chip">一覧</div>
+          </div>
+          <!-- Tasks -->
+          <div class="task-scroll">
+            <!-- 今日のタスク -->
+            <div class="section-header">
+              <span class="section-dot" style="background:#f59e0b"></span>
+              <span class="section-name">今日のタスク</span>
+              <span class="section-count">2</span>
+            </div>
+            <div class="task-item priority-high">
+              <span class="drag-handle">⋮⋮</span>
+              <div class="task-circle"></div>
+              <span class="status-badge s-doing">進行中</span>
+              <span class="task-title">Q3 レポートを仕上げる</span>
+              <span class="task-group-badge" style="background:rgba(99,102,241,.12);color:#818cf8">仕事</span>
+              <span class="task-due">今日</span>
+            </div>
+            <div class="task-item priority-medium">
+              <span class="drag-handle">⋮⋮</span>
+              <div class="task-circle"></div>
+              <span class="status-badge s-todo">未着手</span>
+              <span class="task-title">チームミーティングの議事録を送る</span>
+              <span class="task-group-badge" style="background:rgba(99,102,241,.12);color:#818cf8">仕事</span>
+              <span class="task-due">今日</span>
+            </div>
+            <!-- 仕事グループ -->
+            <div class="section-header" style="margin-top:4px">
+              <span class="section-dot" style="background:#6366f1"></span>
+              <span class="section-name">仕事</span>
+              <span class="section-count">3</span>
+            </div>
+            <div class="task-item">
+              <span class="drag-handle">⋮⋮</span>
+              <div class="task-circle"></div>
+              <span class="status-badge s-pending">保留</span>
+              <span class="task-title">新機能の仕様書を確認する</span>
+              <span class="task-due" style="color:#a78bfa">3日後</span>
+            </div>
+            <div class="task-item">
+              <span class="drag-handle">⋮⋮</span>
+              <div class="task-circle"></div>
+              <span class="status-badge s-todo">未着手</span>
+              <span class="task-title">採用候補者の面接スケジュール調整</span>
+              <span class="task-due">来週</span>
+            </div>
+            <div class="task-item done">
+              <span class="drag-handle">⋮⋮</span>
+              <div class="task-circle done"></div>
+              <span class="status-badge s-done">完了</span>
+              <span class="task-title">デザインレビューに参加</span>
+              <span class="task-due">昨日</span>
+            </div>
+            <!-- プライベートグループ -->
+            <div class="section-header" style="margin-top:4px">
+              <span class="section-dot" style="background:#22c55e"></span>
+              <span class="section-name">プライベート</span>
+              <span class="section-count">2</span>
+            </div>
+            <div class="task-item">
+              <span class="drag-handle">⋮⋮</span>
+              <div class="task-circle"></div>
+              <span class="status-badge s-todo">未着手</span>
+              <span class="task-title">歯医者の予約を取る</span>
+              <span class="task-due overdue">昨日</span>
+            </div>
+            <div class="task-item">
+              <span class="drag-handle">⋮⋮</span>
+              <div class="task-circle"></div>
+              <span class="status-badge s-todo">未着手</span>
+              <span class="task-title">本を返却する（図書館）</span>
+              <span class="task-due">明日</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ Features Overview ══ -->
+<section class="features" id="features">
+  <div class="container">
+    <div class="section-label"><span>主要機能</span></div>
+    <h2 class="section-heading">必要な機能が、すべて揃っている</h2>
+    <p class="section-sub">複雑なセットアップは不要。インストールしてすぐに使える、実用的な機能の数々。</p>
+
+    <div class="feature-grid">
+      <div class="feature-card reveal">
+        <div class="feature-icon icon-amber">☀️</div>
+        <h3>今日のタスクを最上段に</h3>
+        <p>期限が今日のタスクを自動で抽出し、リストの最上段に表示。やるべきことを見落とさない。セクション内でのドラッグ＆ドロップで作業順序も管理できます。</p>
+      </div>
+      <div class="feature-card reveal">
+        <div class="feature-icon icon-indigo">🎯</div>
+        <h3>4段階のステータス管理</h3>
+        <p>未着手・進行中・保留・完了の4ステータスをバッジで直感的に管理。ワンクリックでステータス変更、完了ボタンで素早く Done にできます。</p>
+      </div>
+      <div class="feature-card reveal">
+        <div class="feature-icon icon-green">📁</div>
+        <h3>グループ＆タグで整理</h3>
+        <p>仕事・プライベートなどグループで分類し、複数タグでクロス管理。カラーカスタマイズ対応でひと目で識別できます。</p>
+      </div>
+      <div class="feature-card reveal">
+        <div class="feature-icon icon-purple">🔔</div>
+        <h3>スマートリマインド</h3>
+        <p>期限・リマインド時刻を設定するとmacOSネイティブ通知を送信。アプリを閉じていても通知を受け取れます。</p>
+      </div>
+      <div class="feature-card reveal">
+        <div class="feature-icon icon-blue">🔀</div>
+        <h3>柔軟な並び替え＆表示</h3>
+        <p>手動・期限順・優先度順での並び替えに対応。グループ表示と一覧表示を切り替えて、自分に合ったビューで作業できます。</p>
+      </div>
+      <div class="feature-card reveal">
+        <div class="feature-icon icon-red">🔄</div>
+        <h3>繰り返しタスク</h3>
+        <p>毎日・毎週・毎月・毎年の繰り返し設定に対応。曜日指定や月末ルールなど細かい設定も可能。完了すると自動で次回分が作成されます。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ Spotlight 1: Today ══ -->
+<section class="spotlight">
+  <div class="spotlight-inner container reveal">
+    <div class="spotlight-text">
+      <p class="spotlight-kicker">今日のタスク</p>
+      <h2>「今日やること」を<br>常に把握する</h2>
+      <p>期限が今日のタスクは、グループに関係なく自動的に最上段の「今日のタスク」セクションにまとめて表示されます。他のグループからドラッグするだけで期限を今日に更新することも可能です。</p>
+      <ul class="feature-list">
+        <li>今日期限のタスクを自動収集・最上段表示</li>
+        <li>セクション内でドラッグ＆ドロップで作業順序を変更</li>
+        <li>他セクションからドラッグで期限を今日に自動更新</li>
+        <li>グループバッジで元グループが一目でわかる</li>
+      </ul>
+    </div>
+    <div class="spotlight-visual">
+      <div class="mini-mockup">
+        <div class="mini-chrome">
+          <span class="traffic t-red mini"></span>
+          <span class="traffic t-yellow mini"></span>
+          <span class="traffic t-green mini"></span>
+        </div>
+        <div style="padding:0">
+          <div class="section-header" style="background:#1a1810">
+            <span class="section-dot" style="background:#f59e0b"></span>
+            <span class="section-name" style="color:#f59e0b">今日のタスク</span>
+            <span class="section-count">3</span>
+          </div>
+          <div class="task-item priority-high">
+            <span class="drag-handle">⋮⋮</span>
+            <div class="task-circle"></div>
+            <span class="status-badge s-doing">進行中</span>
+            <span class="task-title">企画書の修正</span>
+            <span class="task-group-badge" style="background:rgba(99,102,241,.12);color:#818cf8">仕事</span>
+            <span class="task-due">今日</span>
+          </div>
+          <div class="task-item">
+            <span class="drag-handle">⋮⋮</span>
+            <div class="task-circle"></div>
+            <span class="status-badge s-todo">未着手</span>
+            <span class="task-title">薬を買う</span>
+            <span class="task-group-badge" style="background:rgba(34,197,94,.12);color:#4ade80">プライベート</span>
+            <span class="task-due">今日</span>
+          </div>
+          <div class="task-item priority-medium">
+            <span class="drag-handle">⋮⋮</span>
+            <div class="task-circle"></div>
+            <span class="status-badge s-todo">未着手</span>
+            <span class="task-title">週次レポートを送る</span>
+            <span class="task-group-badge" style="background:rgba(99,102,241,.12);color:#818cf8">仕事</span>
+            <span class="task-due">今日</span>
+          </div>
+          <div class="section-header" style="margin-top:4px">
+            <span class="section-dot" style="background:#6366f1"></span>
+            <span class="section-name">仕事</span>
+            <span class="section-count">5</span>
+          </div>
+          <div class="task-item" style="opacity:.6">
+            <span class="drag-handle">⋮⋮</span>
+            <div class="task-circle"></div>
+            <span class="status-badge s-todo">未着手</span>
+            <span class="task-title">来週のミーティング準備</span>
+            <span class="task-due">3日後</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ Spotlight 2: Status ══ -->
+<section class="spotlight" style="background:var(--bg2)">
+  <div class="spotlight-inner reverse container reveal">
+    <div class="spotlight-text">
+      <p class="spotlight-kicker">ステータス管理</p>
+      <h2>タスクの進捗を<br>バッジで可視化</h2>
+      <p>タスク名の先頭に現在のステータスをカラーバッジで常時表示。クリックするとドロップダウンが開き、4つのステータスから即座に切り替えられます。</p>
+      <ul class="feature-list">
+        <li>未着手 / 進行中 / 保留 / 完了 の4ステータス</li>
+        <li>バッジクリックで全ステータスから直接選択</li>
+        <li>左の完了ボタンで Done ⇔ 前のステータスを往復</li>
+        <li>サイドバーで複数ステータスを同時にフィルター</li>
+      </ul>
+    </div>
+    <div class="spotlight-visual">
+      <div class="mini-mockup">
+        <div class="mini-chrome">
+          <span class="traffic t-red mini"></span>
+          <span class="traffic t-yellow mini"></span>
+          <span class="traffic t-green mini"></span>
+        </div>
+        <div>
+          <div class="task-item priority-high">
+            <span class="drag-handle">⋮⋮</span>
+            <div class="task-circle"></div>
+            <span class="status-badge s-doing" style="cursor:pointer">進行中 ▾</span>
+            <span class="task-title">設計書レビュー</span>
+            <span class="task-due">今日</span>
+          </div>
+          <!-- Picker mockup -->
+          <div style="margin:0 12px 10px 52px; background:var(--surface2); border:1px solid var(--border); border-radius:10px; overflow:hidden; font-size:11px;">
+            <div style="padding:6px 12px; border-bottom:1px solid var(--border); color:var(--dim)">未着手</div>
+            <div style="padding:6px 12px; border-bottom:1px solid var(--border); background:rgba(245,158,11,.08); color:var(--warning); font-weight:600">進行中 ✓</div>
+            <div style="padding:6px 12px; border-bottom:1px solid var(--border); color:var(--purple)">保留</div>
+            <div style="padding:6px 12px; color:var(--success)">完了</div>
+          </div>
+          <div class="task-item">
+            <span class="drag-handle">⋮⋮</span>
+            <div class="task-circle"></div>
+            <span class="status-badge s-pending">保留</span>
+            <span class="task-title">ベンダー選定</span>
+            <span class="task-due">5日後</span>
+          </div>
+          <div class="task-item done">
+            <span class="drag-handle">⋮⋮</span>
+            <div class="task-circle done"></div>
+            <span class="status-badge s-done">完了</span>
+            <span class="task-title">キックオフミーティング</span>
+            <span class="task-due">昨日</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ All Features Grid ══ -->
+<section class="all-features" id="all-features">
+  <div class="container">
+    <div class="section-label"><span>すべての機能</span></div>
+    <h2 class="section-heading" style="margin-bottom:48px">細部までこだわった<br>機能の数々</h2>
+
+    <div class="chip-grid">
+      <div class="chip reveal">
+        <span class="chip-emoji">⚡</span>
+        <div class="chip-body">
+          <h4>クイック追加</h4>
+          <p>ヘッダーの入力バーからすばやくタスクを追加。#タグ名 でタグも同時に設定。</p>
+        </div>
+      </div>
+      <div class="chip reveal">
+        <span class="chip-emoji">🎤</span>
+        <div class="chip-body">
+          <h4>音声入力</h4>
+          <p>マイクボタンを押して話しかけるだけでタスクを追加。ハンズフリーで素早く入力。</p>
+        </div>
+      </div>
+      <div class="chip reveal">
+        <span class="chip-emoji">🚩</span>
+        <div class="chip-body">
+          <h4>優先度設定</h4>
+          <p>高・中・低・なしの4段階。優先度に応じてタスク左端に色帯を表示。優先度順ソートにも対応。</p>
+        </div>
+      </div>
+      <div class="chip reveal">
+        <span class="chip-emoji">📋</span>
+        <div class="chip-body">
+          <h4>タスクのコピー&ペースト</h4>
+          <p>タスクをコピーしてペーストバーから貼り付け。タグ・期限・繰り返し設定も引き継ぎ。</p>
+        </div>
+      </div>
+      <div class="chip reveal">
+        <span class="chip-emoji">🖱️</span>
+        <div class="chip-body">
+          <h4>ドラッグ＆ドロップ</h4>
+          <p>グループ内でのタスク並び替えに加え、今日セクションへのドロップで期限を自動更新。</p>
+        </div>
+      </div>
+      <div class="chip reveal">
+        <span class="chip-emoji">🔍</span>
+        <div class="chip-body">
+          <h4>全文検索</h4>
+          <p>サイドバーの検索ボックスからタイトルをリアルタイム検索。キーワードですぐに絞り込み。</p>
+        </div>
+      </div>
+      <div class="chip reveal">
+        <span class="chip-emoji">🌙</span>
+        <div class="chip-body">
+          <h4>ダーク / ライトモード</h4>
+          <p>macOS のシステム設定に連動。目に優しいダークテーマで長時間の作業も快適。</p>
+        </div>
+      </div>
+      <div class="chip reveal">
+        <span class="chip-emoji">📅</span>
+        <div class="chip-body">
+          <h4>期限管理</h4>
+          <p>期限日を設定すると今日・明日・〇日後などわかりやすいラベルで表示。期限超過は赤色で警告。</p>
+        </div>
+      </div>
+      <div class="chip reveal">
+        <span class="chip-emoji">🔔</span>
+        <div class="chip-body">
+          <h4>リマインド通知</h4>
+          <p>指定時刻に macOS ネイティブ通知を送信。アプリを閉じていても確実に通知。</p>
+        </div>
+      </div>
+      <div class="chip reveal">
+        <span class="chip-emoji">🔄</span>
+        <div class="chip-body">
+          <h4>繰り返しタスク</h4>
+          <p>毎日・毎週（曜日指定）・毎月（日付/月末）・毎年に対応。完了と同時に次回分を自動生成。</p>
+        </div>
+      </div>
+      <div class="chip reveal">
+        <span class="chip-emoji">📝</span>
+        <div class="chip-body">
+          <h4>タスクメモ</h4>
+          <p>各タスクに自由なメモを追加可能。詳細情報や参考リンクなどを記録しておけます。</p>
+        </div>
+      </div>
+      <div class="chip reveal">
+        <span class="chip-emoji">🗂️</span>
+        <div class="chip-body">
+          <h4>複数ステータスフィルター</h4>
+          <p>「完了以外を表示」など複数ステータスを同時選択してフィルタリング。</p>
+        </div>
+      </div>
+      <div class="chip reveal">
+        <span class="chip-emoji">🏷️</span>
+        <div class="chip-body">
+          <h4>カラータグ</h4>
+          <p>タグにカラーを設定して視覚的に分類。複数タグの組み合わせで多軸管理が可能。</p>
+        </div>
+      </div>
+      <div class="chip reveal">
+        <span class="chip-emoji">🚀</span>
+        <div class="chip-body">
+          <h4>自動起動</h4>
+          <p>macOS ログイン時に自動起動。システムトレイ常駐でいつでもワンクリックで開閉。</p>
+        </div>
+      </div>
+      <div class="chip reveal">
+        <span class="chip-emoji">⚙️</span>
+        <div class="chip-body">
+          <h4>日本語 macOS メニュー</h4>
+          <p>メニューバーも日本語化済み。macOS ネイティブアプリとして自然に使えます。</p>
+        </div>
+      </div>
+      <div class="chip reveal">
+        <span class="chip-emoji">🦀</span>
+        <div class="chip-body">
+          <h4>高速・軽量</h4>
+          <p>Tauri + Rust バックエンドにより、Electron 比で大幅に軽量。起動も操作もキビキビ動作。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ Download ══ -->
+<section class="download" id="download">
+  <div class="container">
+    <div class="section-label"><span>ダウンロード</span></div>
+    <h2>今すぐ始めよう</h2>
+    <p>インストールしてすぐに使えます。無料・オープンソース。</p>
+
+    <div class="version-badge">
+      <span class="dot"></span>
+      最新バージョン: <span id="version-text">読み込み中…</span>
+    </div>
+
+    <div class="platform-cards">
+      <!-- macOS -->
+      <div class="platform-card reveal">
+        <div class="platform-card-header">
+          <div class="platform-icon" style="background:rgba(99,102,241,.12)">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="var(--accent2)"><path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.54 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"/></svg>
+          </div>
+          <div>
+            <div class="platform-card-title">macOS</div>
+            <div class="platform-card-sub">macOS 12 Monterey 以降</div>
+          </div>
+        </div>
+
+        <a id="dl-mac-arm" href="https://github.com/ktateishi/simple-todo/releases/latest" target="_blank" rel="noopener" class="dl-btn primary-dl">
+          <div class="dl-btn-icon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          </div>
+          <div class="dl-btn-info">
+            <div class="dl-btn-label">Apple Silicon (M1 / M2 / M3)</div>
+            <div class="dl-btn-sub">.dmg — aarch64</div>
+          </div>
+          <span class="dl-badge">推奨</span>
+        </a>
+
+        <a id="dl-mac-x64" href="https://github.com/ktateishi/simple-todo/releases/latest" target="_blank" rel="noopener" class="dl-btn">
+          <div class="dl-btn-icon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          </div>
+          <div class="dl-btn-info">
+            <div class="dl-btn-label">Intel Mac</div>
+            <div class="dl-btn-sub">.dmg — x86_64</div>
+          </div>
+        </a>
+      </div>
+
+      <!-- Windows -->
+      <div class="platform-card reveal">
+        <div class="platform-card-header">
+          <div class="platform-icon" style="background:rgba(14,165,233,.1)">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="#0ea5e9"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.551H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-13.051-1.949"/></svg>
+          </div>
+          <div>
+            <div class="platform-card-title">Windows</div>
+            <div class="platform-card-sub">Windows 10 / 11 (64-bit)</div>
+          </div>
+        </div>
+
+        <a id="dl-win-exe" href="https://github.com/ktateishi/simple-todo/releases/latest" target="_blank" rel="noopener" class="dl-btn primary-dl">
+          <div class="dl-btn-icon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          </div>
+          <div class="dl-btn-info">
+            <div class="dl-btn-label">インストーラー</div>
+            <div class="dl-btn-sub">.exe — x64-setup</div>
+          </div>
+          <span class="dl-badge">推奨</span>
+        </a>
+
+        <a id="dl-win-msi" href="https://github.com/ktateishi/simple-todo/releases/latest" target="_blank" rel="noopener" class="dl-btn">
+          <div class="dl-btn-icon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          </div>
+          <div class="dl-btn-info">
+            <div class="dl-btn-label">MSI パッケージ</div>
+            <div class="dl-btn-sub">.msi — en-US</div>
+          </div>
+        </a>
+      </div>
+    </div>
+
+    <p class="releases-link">全バージョン・変更履歴は <a href="https://github.com/ktateishi/simple-todo/releases" target="_blank" rel="noopener">GitHub Releases</a> でご確認いただけます</p>
+  </div>
+</section>
+
+<!-- ══ Footer ══ -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-left">
+      <a href="#" class="footer-logo">
+        <div class="footer-logo-icon">
+          <svg viewBox="0 0 12 12" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round">
+            <path d="M2 3h8M2 6h5M2 9h6"/>
+          </svg>
+        </div>
+        <span class="footer-name">Simple TODO</span>
+      </a>
+      <span class="footer-copy">© 2026 ktateishi. MIT License.</span>
+    </div>
+    <div class="footer-links">
+      <a href="https://github.com/ktateishi/simple-todo" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/ktateishi/simple-todo/releases" target="_blank" rel="noopener">リリース</a>
+      <a href="https://github.com/ktateishi/simple-todo/issues" target="_blank" rel="noopener">バグ報告</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+const observer = new IntersectionObserver(
+  (entries) => entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } }),
+  { threshold: 0.12 }
+);
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+// ── GitHub Releases API: populate download links ──
+(async () => {
+  const REPO = 'ktateishi/simple-todo';
+  const RELEASES_URL = `https://github.com/${REPO}/releases/latest`;
+  const API_URL = `https://api.github.com/repos/${REPO}/releases/latest`;
+
+  const versionEl = document.getElementById('version-text');
+  const dlMacArm  = document.getElementById('dl-mac-arm');
+  const dlMacX64  = document.getElementById('dl-mac-x64');
+  const dlWinExe  = document.getElementById('dl-win-exe');
+  const dlWinMsi  = document.getElementById('dl-win-msi');
+
+  try {
+    const res = await fetch(API_URL, { headers: { Accept: 'application/vnd.github+json' } });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+
+    versionEl.textContent = data.tag_name ?? '最新';
+
+    const assets = data.assets ?? [];
+    const find = (pattern) => {
+      const a = assets.find(a => pattern.test(a.name));
+      return a ? a.browser_download_url : RELEASES_URL;
+    };
+
+    dlMacArm.href = find(/aarch64\.dmg$/i);
+    dlMacX64.href = find(/x86_64\.dmg$/i);
+    dlWinExe.href = find(/_x64-setup\.exe$/i);
+    dlWinMsi.href = find(/_x64_en-US\.msi$/i);
+  } catch (_) {
+    versionEl.textContent = '最新';
+    // hrefs already default to releases/latest — no further action needed
+  }
+})();
+</script>
+</body>
+</html>
