@@ -57,6 +57,10 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: Simple TODO ${{ github.ref_name }}
           releaseBody: |
+            変更内容の詳細は [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/${{ github.ref_name }}/CHANGELOG.md) をご覧ください。
+
+            ---
+
             ## ダウンロード
 
             ### macOS
@@ -66,17 +70,13 @@ jobs:
             | Intel Mac | `*_x86_64.dmg` |
 
             > ダウンロード後、Gatekeeper の警告が表示された場合は
-            > システム設定 → プライバシーとセキュリティ → 「このまま開く」を選択してください。
+            > システム設定 → プライバシーとセキュリティ →「このまま開く」を選択してください。
 
             ### Windows
             | 種別 | ファイル |
             |---|---|
             | インストーラー (推奨) | `*_x64-setup.exe` |
             | MSI | `*_x64_en-US.msi` |
-
-            ---
-            ## 変更内容
-            https://github.com/${{ github.repository }}/commits/${{ github.ref_name }}
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
