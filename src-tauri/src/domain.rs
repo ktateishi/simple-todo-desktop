@@ -22,6 +22,7 @@ pub struct Task {
     pub recur_month_day: Option<i64>,     // 1-31
     // Priority: 0=none 1=low 2=medium 3=high
     pub priority: i64,
+    pub start_at: Option<i64>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -46,6 +47,7 @@ pub struct NewTask {
     pub recur_weekdays: Option<Vec<u8>>,
     pub recur_month_rule: Option<String>,
     pub recur_month_day: Option<i64>,
+    pub start_at: Option<i64>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -62,6 +64,7 @@ pub struct TaskUpdate {
     pub recur_month_rule: Option<String>,
     pub recur_month_day: Option<i64>,
     pub priority: i64,
+    pub start_at: Option<i64>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

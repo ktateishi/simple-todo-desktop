@@ -36,11 +36,16 @@
   import Clipboard     from 'lucide-svelte/icons/clipboard';
   import ClipboardX   from 'lucide-svelte/icons/clipboard-x';
   import { dndzone }   from 'svelte-dnd-action';
+  import { check as checkUpdate, type Update } from '@tauri-apps/plugin-updater';
+  import { relaunch } from '@tauri-apps/plugin-process';
 
   const PRESET_COLORS = [
     '#6366F1','#3B82F6','#06B6D4','#22C55E',
     '#EAB308','#F97316','#EF4444','#EC4899','#8B5CF6',
   ];
+
+  let pendingUpdate   = $state<Update | null>(null);
+  let updating        = $state(false);
 
   let editingTask     = $state<TaskWithTags | null>(null);
   let newGroupName    = $state('');
@@ -108,13 +113,21 @@
   }
 
   onMount(async () => {
-    // macOS requires explicit permission before notifications can be shown.
-    // Without this the Rust backend's show() call silently fails.
     if (!(await isPermissionGranted())) {
       await requestPermission();
     }
     await loadAll();
+
+    // Check for updates in background (non-blocking)
+    checkUpdate().then(u => { if (u?.available) pendingUpdate = u; }).catch(() => {});
   });
+
+  async function applyUpdate() {
+    if (!pendingUpdate) return;
+    updating = true;
+    await pendingUpdate.downloadAndInstall();
+    await relaunch();
+  }
 
   // ── Quick Add ──────────────────────────────────────────────────────────
   async function handleAdd(data: { title: string; tagNames: string[]; groupId?: number }) {
@@ -154,6 +167,8 @@
     await refreshTasks();
   }
 
+  function autoFocus(node: HTMLElement) { node.focus(); }
+
   // ── Groups / Tags ──────────────────────────────────────────────────────
   async function addGroup() {
     if (!newGroupName.trim()) return;
@@ -169,6 +184,20 @@
     await refreshTags();
     newTagName = ''; newTagColor = null;
     showTagForm = false;
+  }
+
+  function handleGroupFormFocusout(e: FocusEvent) {
+    if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node)) {
+      if (newGroupName.trim()) addGroup();
+      else { showGroupForm = false; newGroupColor = null; }
+    }
+  }
+
+  function handleTagFormFocusout(e: FocusEvent) {
+    if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node)) {
+      if (newTagName.trim()) addTag();
+      else { showTagForm = false; newTagColor = null; }
+    }
   }
 
   function startEditGroup(g: { id: number; name: string; color: string | null }) {
@@ -342,7 +371,7 @@
         {/if}
       {/each}
       {#if showGroupForm}
-        <form class="inline-form" onsubmit={(e) => { e.preventDefault(); addGroup(); }}>
+        <form class="inline-form" onsubmit={(e) => { e.preventDefault(); addGroup(); }} onfocusout={handleGroupFormFocusout}>
           <div class="color-swatches">
             {#each PRESET_COLORS as c}
               <button
@@ -355,10 +384,7 @@
               ></button>
             {/each}
           </div>
-          <div class="inline-form-row">
-            <input class="mini-input" bind:value={newGroupName} placeholder="グループ名" />
-            <button type="submit" class="mini-btn-accent">追加</button>
-          </div>
+          <input class="mini-input" bind:value={newGroupName} placeholder="グループ名" use:autoFocus />
         </form>
       {/if}
     </nav>
@@ -390,7 +416,7 @@
         </div>
       {/each}
       {#if showTagForm}
-        <form class="inline-form" onsubmit={(e) => { e.preventDefault(); addTag(); }}>
+        <form class="inline-form" onsubmit={(e) => { e.preventDefault(); addTag(); }} onfocusout={handleTagFormFocusout}>
           <div class="color-swatches">
             {#each PRESET_COLORS as c}
               <button
@@ -403,10 +429,7 @@
               ></button>
             {/each}
           </div>
-          <div class="inline-form-row">
-            <input class="mini-input" bind:value={newTagName} placeholder="タグ名" />
-            <button type="submit" class="mini-btn-accent">追加</button>
-          </div>
+          <input class="mini-input" bind:value={newTagName} placeholder="タグ名" use:autoFocus />
         </form>
       {/if}
     </nav>
@@ -418,6 +441,24 @@
 
   <!-- ── Main ────────────────────────────────────────────────────────── -->
   <main class="main">
+
+    <!-- Update banner -->
+    {#if pendingUpdate}
+      <div class="update-banner">
+        <span class="update-msg">
+          🎉 新しいバージョン <strong>v{pendingUpdate.version}</strong> が利用可能です
+        </span>
+        <div class="update-actions">
+          <button class="update-btn" onclick={applyUpdate} disabled={updating}>
+            {updating ? 'ダウンロード中…' : '今すぐ更新'}
+          </button>
+          <button class="update-dismiss" onclick={() => pendingUpdate = null} title="後で">
+            <X size={13} strokeWidth={2.5} />
+          </button>
+        </div>
+      </div>
+    {/if}
+
     <QuickAdd onAdd={handleAdd} />
 
     <!-- Paste bar -->
@@ -744,9 +785,8 @@
   gap: 5px;
   padding: 5px 10px 8px;
 }
-.inline-form-row {
-  display: flex;
-  gap: 4px;
+.inline-form .mini-input {
+  width: 100%;
 }
 .color-swatches {
   display: flex;
@@ -795,6 +835,40 @@
   background: var(--bg);
 }
 /* ── Paste bar ───────────────────────────────── */
+.update-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 16px;
+  background: rgba(99,102,241,.12);
+  border-bottom: 1px solid rgba(99,102,241,.3);
+  font-size: 0.85rem;
+}
+.update-msg { color: var(--text); }
+.update-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.update-btn {
+  padding: 4px 14px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity .12s;
+}
+.update-btn:disabled { opacity: .55; cursor: default; }
+.update-btn:not(:disabled):hover { opacity: .85; }
+.update-dismiss {
+  display: flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px;
+  border-radius: 6px;
+  color: var(--text-muted);
+  background: transparent;
+  transition: background .1s, color .1s;
+}
+.update-dismiss:hover { background: var(--hover); color: var(--text); }
+
 .paste-bar {
   display: flex;
   align-items: center;

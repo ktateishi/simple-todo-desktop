@@ -62,6 +62,7 @@ pub fn init_db(conn: &mut Connection) -> Result<()> {
         ("recur_month_rule", "TEXT"),
         ("recur_month_day",  "INTEGER"),
         ("priority",         "INTEGER NOT NULL DEFAULT 0"),
+        ("start_at",         "INTEGER"),
     ] {
         let _ = conn.execute(
             &format!("ALTER TABLE tasks ADD COLUMN {} {}", col, def),
