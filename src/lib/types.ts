@@ -22,6 +22,7 @@ export interface Task {
   recur_month_rule: RecurMonthRule | null;
   recur_month_day: number | null;   // 1-31
   priority: number;                 // 0=none 1=low 2=medium 3=high
+  start_at: number | null;
 }
 
 export interface TaskWithTags extends Task {
@@ -42,6 +43,7 @@ export interface NewTask {
   recur_weekdays?: number[];
   recur_month_rule?: RecurMonthRule;
   recur_month_day?: number;
+  start_at?: number;
 }
 
 export interface TaskUpdate {
@@ -57,6 +59,7 @@ export interface TaskUpdate {
   recur_month_rule?: RecurMonthRule;
   recur_month_day?: number;
   priority: number;
+  start_at?: number;
 }
 
 export interface Group {

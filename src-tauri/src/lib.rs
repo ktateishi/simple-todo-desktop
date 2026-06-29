@@ -24,6 +24,8 @@ pub fn run() {
             Some(vec![]),
         ))
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .setup(|app| {
             // ── Init DB ──
             let db_path = app.path().app_data_dir()?.join("todo.db");

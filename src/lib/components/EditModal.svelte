@@ -5,7 +5,8 @@
 
   import Pencil     from 'lucide-svelte/icons/pencil';
   import FileText   from 'lucide-svelte/icons/file-text';
-  import Calendar   from 'lucide-svelte/icons/calendar';
+  import Calendar      from 'lucide-svelte/icons/calendar';
+  import CalendarRange from 'lucide-svelte/icons/calendar-range';
   import Bell       from 'lucide-svelte/icons/bell';
   import RefreshCw  from 'lucide-svelte/icons/refresh-cw';
   import FolderOpen from 'lucide-svelte/icons/folder-open';
@@ -26,6 +27,7 @@
 
   let title      = $state(untrack(() => task.title));
   let notes      = $state(untrack(() => task.notes ?? ''));
+  let startStr   = $state(untrack(() => task.start_at  ? toDateStr(task.start_at)  : ''));
   let dueStr     = $state(untrack(() => task.due_at    ? toDateStr(task.due_at)    : ''));
   let remindStr  = $state(untrack(() => task.remind_at ? toDateTimeStr(task.remind_at) : ''));
   let groupId    = $state<number | null>(untrack(() => task.group_id));
@@ -80,6 +82,7 @@
       update: {
         title:     title.trim(),
         notes:     notes || undefined,
+        start_at:  startStr  ? new Date(startStr + 'T00:00').getTime() : undefined,
         due_at:    dueStr    ? new Date(dueStr + 'T00:00').getTime() : undefined,
         remind_at: remindStr ? new Date(remindStr).getTime() : undefined,
         group_id:  groupId ?? undefined,
@@ -154,16 +157,23 @@
       <textarea bind:value={notes} class="input textarea" placeholder="メモ（任意）" rows="3"></textarea>
     </label>
 
-    <!-- Due / Remind -->
+    <!-- Period / Remind -->
     <div class="row-2">
+      <label class="field">
+        <span class="field-label"><CalendarRange size={12} strokeWidth={2} />開始日</span>
+        <input type="date" bind:value={startStr} class="input" />
+      </label>
       <label class="field">
         <span class="field-label"><Calendar size={12} strokeWidth={2} />期限</span>
         <input type="date" bind:value={dueStr} class="input" />
       </label>
+    </div>
+    <div class="row-2">
       <label class="field">
         <span class="field-label"><Bell size={12} strokeWidth={2} />リマインド</span>
         <input type="datetime-local" bind:value={remindStr} class="input" />
       </label>
+      <div></div>
     </div>
 
     <!-- Recurrence -->

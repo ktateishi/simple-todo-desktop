@@ -28,17 +28,20 @@ export const filteredTasks = derived(
     })
 );
 
-// Tasks due today (non-done), used for the top "今日のタスク" section
+// Tasks due today or spanning today (non-done, non-pending), used for the top "今日のタスク" section
 export const todayTasks = derived(filteredTasks, ($tasks) => {
   const now      = new Date();
   const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
   const dayEnd   = dayStart + 86_400_000;
-  return $tasks.filter(t =>
-    t.status !== 'done' &&
-    t.due_at !== null &&
-    t.due_at >= dayStart &&
-    t.due_at < dayEnd
-  );
+  return $tasks.filter(t => {
+    if (t.status === 'done' || t.status === 'pending' || t.due_at === null) return false;
+    if (t.start_at !== null) {
+      // Period task: show every day from start_at to due_at
+      return t.start_at < dayEnd && t.due_at >= dayStart;
+    }
+    // Single due-date task: show only on the due date
+    return t.due_at >= dayStart && t.due_at < dayEnd;
+  });
 });
 
 function applySort(tasks: TaskWithTags[], sort: string): TaskWithTags[] {

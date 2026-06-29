@@ -65,8 +65,14 @@
     return task.due_at < new Date(n.getFullYear(), n.getMonth(), n.getDate()).getTime();
   });
 
+  function shortDate(ts: number): string {
+    return new Date(ts).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' });
+  }
+
   const dueDateLabel = $derived((): string | null => {
     if (!task.due_at) return null;
+    // Period task: show "開始〜期限"
+    if (task.start_at) return `${shortDate(task.start_at)}〜${shortDate(task.due_at)}`;
     const now    = new Date();
     const due    = new Date(task.due_at);
     const today  = new Date(now.getFullYear(), now.getMonth(), now.getDate());

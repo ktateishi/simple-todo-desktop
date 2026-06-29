@@ -99,7 +99,7 @@ const TASK_SELECT: &str =
     "SELECT id,title,notes,status,due_at,remind_at,notified,group_id,
             sort_order,created_at,updated_at,completed_at,
             recur_type,recur_interval,recur_weekdays,recur_month_rule,recur_month_day,
-            COALESCE(priority,0)
+            COALESCE(priority,0),start_at
      FROM tasks";
 
 fn row_to_task(row: &rusqlite::Row) -> rusqlite::Result<Task> {
@@ -127,6 +127,7 @@ fn row_to_task(row: &rusqlite::Row) -> rusqlite::Result<Task> {
         recur_month_rule: row.get(15)?,
         recur_month_day:  row.get(16)?,
         priority:         row.get(17)?,
+        start_at:         row.get(18)?,
     })
 }
 
@@ -176,13 +177,13 @@ pub fn insert_task(conn: &Connection, input: &NewTask) -> Result<TaskWithTags> {
     conn.execute(
         "INSERT INTO tasks
              (title,notes,status,due_at,remind_at,group_id,sort_order,created_at,updated_at,
-              recur_type,recur_interval,recur_weekdays,recur_month_rule,recur_month_day)
-         VALUES (?1,?2,'todo',?3,?4,?5,?6,?7,?7,?8,?9,?10,?11,?12)",
+              recur_type,recur_interval,recur_weekdays,recur_month_rule,recur_month_day,start_at)
+         VALUES (?1,?2,'todo',?3,?4,?5,?6,?7,?7,?8,?9,?10,?11,?12,?13)",
         params![
             input.title, input.notes, input.due_at, input.remind_at,
             input.group_id, max_order + 1.0, now,
             input.recur_type, input.recur_interval, recur_weekdays_json,
-            input.recur_month_rule, input.recur_month_day,
+            input.recur_month_rule, input.recur_month_day, input.start_at,
         ],
     )?;
     let id = conn.last_insert_rowid();
@@ -223,12 +224,12 @@ pub fn update_task(conn: &Connection, id: i64, upd: &TaskUpdate) -> Result<TaskW
                           group_id=?5,notified=0,updated_at=?6,
                           recur_type=?7,recur_interval=?8,recur_weekdays=?9,
                           recur_month_rule=?10,recur_month_day=?11,
-                          priority=?12
-         WHERE id=?13",
+                          priority=?12,start_at=?13
+         WHERE id=?14",
         params![
             upd.title, upd.notes, upd.due_at, upd.remind_at, upd.group_id, now,
             upd.recur_type, upd.recur_interval, recur_weekdays_json,
-            upd.recur_month_rule, upd.recur_month_day, upd.priority, id,
+            upd.recur_month_rule, upd.recur_month_day, upd.priority, upd.start_at, id,
         ],
     )?;
     with_tags(conn, get_task(conn, id)?)
