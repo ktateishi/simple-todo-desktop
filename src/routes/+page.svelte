@@ -13,6 +13,7 @@
   import GroupSection  from '$lib/components/GroupSection.svelte';
   import TaskItem      from '$lib/components/TaskItem.svelte';
   import EditModal     from '$lib/components/EditModal.svelte';
+  import ScheduleView  from '$lib/components/ScheduleView.svelte';
   import ThemeSwitcher from '$lib/components/ThemeSwitcher.svelte';
 
   import Search       from 'lucide-svelte/icons/search';
@@ -33,6 +34,7 @@
   import ArrowUpDown  from 'lucide-svelte/icons/arrow-up-down';
   import Layers        from 'lucide-svelte/icons/layers';
   import LayoutList    from 'lucide-svelte/icons/layout-list';
+  import ChartGantt    from 'lucide-svelte/icons/chart-gantt';
   import Clipboard     from 'lucide-svelte/icons/clipboard';
   import ClipboardX   from 'lucide-svelte/icons/clipboard-x';
   import { dndzone }   from 'svelte-dnd-action';
@@ -638,9 +640,23 @@
           onclick={() => viewMode.set('flat')}
           title="一覧表示"
         ><LayoutList size={12} strokeWidth={2} />一覧</button>
+        <button
+          class="sort-btn"
+          class:active={$viewMode === 'schedule'}
+          onclick={() => viewMode.set('schedule')}
+          title="スケジュール表示"
+        ><ChartGantt size={12} strokeWidth={2} />スケジュール</button>
       </div>
     </div>
 
+    {#if $viewMode === 'schedule'}
+      <!-- ── スケジュール表示（ガントチャート） ─────────────── -->
+      <ScheduleView
+        onStatusChange={handleStatusChange}
+        onDelete={handleDelete}
+        onEdit={handleEdit}
+      />
+    {:else}
     <div class="task-scroll">
 
       {#if $viewMode === 'grouped'}
@@ -722,6 +738,7 @@
         </div>
       {/if}
     </div>
+    {/if}
   </main>
 </div>
 
