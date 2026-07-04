@@ -15,7 +15,7 @@ export const filterGroupId  = writable<number | null>(null);
 export const filterTagId    = writable<number | null>(null);
 export const searchQuery    = writable<string>('');
 export const sortMode       = writable<'manual' | 'due_asc' | 'due_desc' | 'priority_desc'>('manual');
-export const viewMode       = writable<'grouped' | 'flat'>('grouped');
+export const viewMode       = writable<'grouped' | 'flat' | 'schedule'>('grouped');
 
 export const filteredTasks = derived(
   [tasks, filterStatuses, filterGroupId, filterTagId, searchQuery],
