@@ -3,12 +3,12 @@
   import { isPermissionGranted, requestPermission }         from '@tauri-apps/plugin-notification';
   import { api } from '$lib/api';
   import {
-    tasks, groups, tags, tasksByGroup, sortedTasks, todayTasks,
+    tasks, groups, tags, statuses, tasksByGroup, sortedTasks, todayTasks,
     filterStatuses, filterGroupId, filterTagId, searchQuery, sortMode, viewMode,
     clipboardTask,
-    loadAll, refreshTasks, refreshTags,
+    loadAll, refreshTasks, refreshTags, refreshStatuses,
   } from '$lib/stores';
-  import type { TaskWithTags, Status, TaskUpdate } from '$lib/types';
+  import type { TaskWithTags, Status, StatusDef, TaskUpdate } from '$lib/types';
   import QuickAdd      from '$lib/components/QuickAdd.svelte';
   import GroupSection  from '$lib/components/GroupSection.svelte';
   import TaskItem      from '$lib/components/TaskItem.svelte';
@@ -57,6 +57,16 @@
   let editingGroupId  = $state<number | null>(null);
   let editGroupName   = $state('');
   let editGroupColor  = $state<string | null>(null);
+
+  // ── カスタムステータス管理 ──
+  let showStatusForm      = $state(false);
+  let newStatusName       = $state('');
+  let newStatusColor      = $state<string | null>(null);
+  let newStatusShowToday  = $state(true);
+  let editingStatusId     = $state<number | null>(null);
+  let editStatusName      = $state('');
+  let editStatusColor     = $state<string | null>(null);
+  let editStatusShowToday = $state(true);
 
   // ── 今日のタスク DnD ───────────────────────────────────────────────────
   const TODAY_ORDER_KEY = 'today_task_order';
@@ -226,12 +236,53 @@
     if ($filterTagId === id) filterTagId.set(null);
   }
 
-  const statusOptions: { value: Status; label: string; Icon: unknown }[] = [
-    { value: 'todo',    label: '未着手', Icon: Circle },
-    { value: 'doing',   label: '進行中', Icon: Timer },
-    { value: 'pending', label: '保留',   Icon: CirclePause },
-    { value: 'done',    label: '完了',   Icon: CircleCheck },
-  ];
+  const DEFAULT_STATUS_ICONS: Record<string, typeof Circle | undefined> = {
+    todo:    Circle,
+    doing:   Timer,
+    pending: CirclePause,
+    done:    CircleCheck,
+  };
+
+  // ── ステータス管理 ─────────────────────────────────────────────────────
+  async function addStatus() {
+    if (!newStatusName.trim()) return;
+    await api.addStatus(newStatusName.trim(), newStatusColor, newStatusShowToday);
+    await refreshStatuses();
+    newStatusName = ''; newStatusColor = null; newStatusShowToday = true;
+    showStatusForm = false;
+  }
+
+  function startEditStatus(s: StatusDef) {
+    editingStatusId     = s.id;
+    editStatusName      = s.name;
+    editStatusColor     = s.color;
+    editStatusShowToday = s.show_in_today;
+  }
+
+  async function saveStatus() {
+    if (!editStatusName.trim() || editingStatusId === null) return;
+    await api.updateStatus(editingStatusId, editStatusName.trim(), editStatusColor, editStatusShowToday);
+    await refreshStatuses();
+    editingStatusId = null;
+  }
+
+  async function deleteStatus(s: StatusDef) {
+    await api.deleteStatus(s.id);
+    filterStatuses.update(prev => {
+      if (!prev.has(s.key)) return prev;
+      const next = new Set(prev);
+      next.delete(s.key);
+      return next;
+    });
+    await Promise.all([refreshStatuses(), refreshTasks()]);
+  }
+
+  function handleStatusFormFocusout(e: FocusEvent) {
+    if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node)) {
+      if (newStatusName.trim()) addStatus();
+      else { showStatusForm = false; newStatusColor = null; newStatusShowToday = true; }
+    }
+  }
 
   async function handlePaste() {
     const t = $clipboardTask;
@@ -282,9 +333,14 @@
       </div>
     </div>
 
-    <!-- Status filter (multi-select) -->
+    <!-- Status filter (multi-select) + custom status management -->
     <nav class="nav-section">
-      <p class="nav-label">ビュー</p>
+      <p class="nav-label">
+        ビュー
+        <button class="mini-btn" onclick={() => (showStatusForm = !showStatusForm)} title="ステータス追加">
+          <Plus size={13} strokeWidth={2.5} />
+        </button>
+      </p>
       <button
         class="nav-item"
         class:active={$filterStatuses.size === 0}
@@ -293,20 +349,85 @@
         <span class="nav-icon"><List size={14} strokeWidth={1.75} /></span>
         すべて
       </button>
-      {#each statusOptions as opt}
-        {@const Icon = opt.Icon}
-        <button
-          class="nav-item status-filter-btn"
-          class:active={$filterStatuses.has(opt.value)}
-          onclick={() => toggleStatus(opt.value)}
-        >
-          <span class="nav-icon"><Icon size={14} strokeWidth={1.75} /></span>
-          {opt.label}
-          {#if $filterStatuses.has(opt.value)}
-            <span class="filter-check">✓</span>
-          {/if}
-        </button>
+      {#each $statuses as st (st.id)}
+        {@const Icon = DEFAULT_STATUS_ICONS[st.key]}
+        {#if editingStatusId === st.id}
+          <form class="inline-form" onsubmit={(e) => { e.preventDefault(); saveStatus(); }}>
+            <div class="color-swatches">
+              {#each PRESET_COLORS as c}
+                <button
+                  type="button"
+                  class="swatch"
+                  class:sel={editStatusColor === c}
+                  style="--c:{c}"
+                  onclick={() => editStatusColor = editStatusColor === c ? null : c}
+                  aria-label={c}
+                ></button>
+              {/each}
+            </div>
+            <label class="today-toggle">
+              <input type="checkbox" bind:checked={editStatusShowToday} />
+              今日のタスクに表示
+            </label>
+            <div class="inline-form-row">
+              <input class="mini-input" bind:value={editStatusName} />
+              <button type="submit" class="mini-btn-accent">保存</button>
+              <button type="button" class="mini-btn" onclick={() => editingStatusId = null}>
+                <X size={12} strokeWidth={2.5} />
+              </button>
+            </div>
+          </form>
+        {:else}
+          <div class="nav-item-row">
+            <button
+              class="nav-item status-filter-btn flex1"
+              class:active={$filterStatuses.has(st.key)}
+              onclick={() => toggleStatus(st.key)}
+            >
+              <span class="nav-icon">
+                {#if Icon}
+                  <Icon size={14} strokeWidth={1.75} />
+                {:else}
+                  <span class="dot" style="background:{st.color ?? 'var(--accent)'}"></span>
+                {/if}
+              </span>
+              <span class="nav-name" title={st.name}>{st.name}</span>
+              {#if $filterStatuses.has(st.key)}
+                <span class="filter-check">✓</span>
+              {/if}
+            </button>
+            {#if st.is_custom}
+              <button class="icon-btn" onclick={() => startEditStatus(st)} title="編集">
+                <Pencil2 size={11} strokeWidth={2.5} />
+              </button>
+              <button class="icon-btn danger" onclick={() => deleteStatus(st)} title="削除">
+                <X size={11} strokeWidth={2.5} />
+              </button>
+            {/if}
+          </div>
+        {/if}
       {/each}
+      {#if showStatusForm}
+        <form class="inline-form" onsubmit={(e) => { e.preventDefault(); addStatus(); }} onfocusout={handleStatusFormFocusout}>
+          <div class="color-swatches">
+            {#each PRESET_COLORS as c}
+              <button
+                type="button"
+                class="swatch"
+                class:sel={newStatusColor === c}
+                style="--c:{c}"
+                onclick={() => newStatusColor = newStatusColor === c ? null : c}
+                aria-label={c}
+              ></button>
+            {/each}
+          </div>
+          <label class="today-toggle">
+            <input type="checkbox" bind:checked={newStatusShowToday} />
+            今日のタスクに表示
+          </label>
+          <input class="mini-input" bind:value={newStatusName} placeholder="ステータス名" use:autoFocus />
+        </form>
+      {/if}
     </nav>
 
     <!-- Groups -->
@@ -788,6 +909,22 @@
 .inline-form .mini-input {
   width: 100%;
 }
+.inline-form-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.today-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  user-select: none;
+  padding: 0 2px;
+}
+.today-toggle input { accent-color: var(--accent); }
 .color-swatches {
   display: flex;
   gap: 5px;

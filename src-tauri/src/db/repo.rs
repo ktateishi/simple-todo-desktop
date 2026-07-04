@@ -359,6 +359,92 @@ pub fn delete_group(conn: &Connection, id: i64) -> Result<()> {
     Ok(())
 }
 
+// ───── Statuses ──────────────────────────────────────────────────────────────
+
+const STATUS_SELECT: &str =
+    "SELECT id,key,name,color,is_custom,show_in_today,sort_order FROM statuses";
+
+fn row_to_status(row: &rusqlite::Row) -> rusqlite::Result<StatusDef> {
+    Ok(StatusDef {
+        id:            row.get(0)?,
+        key:           row.get(1)?,
+        name:          row.get(2)?,
+        color:         row.get(3)?,
+        is_custom:     row.get::<_, i64>(4)? != 0,
+        show_in_today: row.get::<_, i64>(5)? != 0,
+        sort_order:    row.get(6)?,
+    })
+}
+
+fn get_status(conn: &Connection, id: i64) -> Result<StatusDef> {
+    conn.query_row(
+        &format!("{} WHERE id=?1", STATUS_SELECT),
+        params![id],
+        row_to_status,
+    )
+}
+
+pub fn list_statuses(conn: &Connection) -> Result<Vec<StatusDef>> {
+    let mut stmt = conn.prepare(
+        &format!("{} ORDER BY sort_order ASC", STATUS_SELECT)
+    )?;
+    let rows = stmt.query_map([], row_to_status)?;
+    rows.collect()
+}
+
+pub fn insert_custom_status(
+    conn: &Connection,
+    name: &str,
+    color: Option<&str>,
+    show_in_today: bool,
+) -> Result<StatusDef> {
+    let max_order: f64 = conn.query_row(
+        "SELECT COALESCE(MAX(sort_order),0.0) FROM statuses", [], |r| r.get(0)
+    )?;
+    // key は id 確定後に custom_<id> へ更新（tasks.status に格納する一意な値）
+    conn.execute(
+        "INSERT INTO statuses (key,name,color,is_custom,show_in_today,sort_order)
+         VALUES ('',?1,?2,1,?3,?4)",
+        params![name, color, show_in_today, max_order + 1.0],
+    )?;
+    let id = conn.last_insert_rowid();
+    conn.execute(
+        "UPDATE statuses SET key='custom_'||id WHERE id=?1", params![id]
+    )?;
+    get_status(conn, id)
+}
+
+pub fn update_custom_status(
+    conn: &Connection,
+    id: i64,
+    name: &str,
+    color: Option<&str>,
+    show_in_today: bool,
+) -> Result<StatusDef> {
+    conn.execute(
+        "UPDATE statuses SET name=?1,color=?2,show_in_today=?3
+         WHERE id=?4 AND is_custom=1",
+        params![name, color, show_in_today, id],
+    )?;
+    get_status(conn, id)
+}
+
+pub fn delete_custom_status(conn: &Connection, id: i64) -> Result<()> {
+    let key: Option<String> = conn.query_row(
+        "SELECT key FROM statuses WHERE id=?1 AND is_custom=1",
+        params![id], |r| r.get(0),
+    ).optional()?;
+
+    // デフォルトステータスは削除不可（is_custom=1 のみヒット）
+    if let Some(key) = key {
+        conn.execute(
+            "UPDATE tasks SET status='todo' WHERE status=?1", params![key]
+        )?;
+        conn.execute("DELETE FROM statuses WHERE id=?1", params![id])?;
+    }
+    Ok(())
+}
+
 // ───── Tags ──────────────────────────────────────────────────────────────────
 
 pub fn list_tags(conn: &Connection) -> Result<Vec<Tag>> {

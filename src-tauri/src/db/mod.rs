@@ -49,6 +49,22 @@ pub fn init_db(conn: &mut Connection) -> Result<()> {
              PRIMARY KEY (task_id, tag_id)
          );
 
+         CREATE TABLE IF NOT EXISTS statuses (
+             id            INTEGER PRIMARY KEY AUTOINCREMENT,
+             key           TEXT    NOT NULL UNIQUE,
+             name          TEXT    NOT NULL,
+             color         TEXT,
+             is_custom     INTEGER NOT NULL DEFAULT 1,
+             show_in_today INTEGER NOT NULL DEFAULT 1,
+             sort_order    REAL    NOT NULL DEFAULT 0.0
+         );
+
+         INSERT OR IGNORE INTO statuses (key,name,color,is_custom,show_in_today,sort_order) VALUES
+             ('todo',    '未着手', NULL, 0, 1, 1.0),
+             ('doing',   '進行中', NULL, 0, 1, 2.0),
+             ('pending', '保留',   NULL, 0, 0, 3.0),
+             ('done',    '完了',   NULL, 0, 0, 4.0);
+
          CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
          CREATE INDEX IF NOT EXISTS idx_tasks_due    ON tasks(due_at);
          CREATE INDEX IF NOT EXISTS idx_tasks_group  ON tasks(group_id, sort_order);",

@@ -95,6 +95,45 @@ pub fn delete_group(state: State<AppState>, id: i64) -> Result<(), String> {
     repo::delete_group(&db, id).map_err(|e| e.to_string())
 }
 
+// ───── Statuses ──────────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub fn list_statuses(state: State<AppState>) -> Result<Vec<StatusDef>, String> {
+    let db = db!(state);
+    repo::list_statuses(&db).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn add_status(
+    state: State<AppState>,
+    name: String,
+    color: Option<String>,
+    show_in_today: bool,
+) -> Result<StatusDef, String> {
+    let db = db!(state);
+    repo::insert_custom_status(&db, &name, color.as_deref(), show_in_today)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn update_status(
+    state: State<AppState>,
+    id: i64,
+    name: String,
+    color: Option<String>,
+    show_in_today: bool,
+) -> Result<StatusDef, String> {
+    let db = db!(state);
+    repo::update_custom_status(&db, id, &name, color.as_deref(), show_in_today)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn delete_status(state: State<AppState>, id: i64) -> Result<(), String> {
+    let db = db!(state);
+    repo::delete_custom_status(&db, id).map_err(|e| e.to_string())
+}
+
 // ───── Tags ──────────────────────────────────────────────────────────────────
 
 #[tauri::command]
