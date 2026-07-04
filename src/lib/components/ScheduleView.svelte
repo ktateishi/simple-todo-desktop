@@ -30,6 +30,8 @@
 
   const days = Array.from({ length: totalDays }, (_, i) => addDays(rangeStart, i));
 
+  const WEEKDAY_LABELS = ['日', '月', '火', '水', '木', '金', '土'];
+
   // 月ヘッダー: {start_index, day_count, label}
   const months = (() => {
     const out: { idx: number; count: number; label: string }[] = [];
@@ -163,10 +165,13 @@
             <div
               class="day-cell"
               class:weekend={weekday(d) === 0 || weekday(d) === 6}
+              class:sun={weekday(d) === 0}
+              class:sat={weekday(d) === 6}
               class:today={d === todayStart}
               style="left:{i * DAY_W}px; width:{DAY_W}px"
             >
-              {dayOfMonth(d)}
+              <span class="day-wd">{WEEKDAY_LABELS[weekday(d)]}</span>
+              <span class="day-num">{dayOfMonth(d)}</span>
             </div>
           {/each}
         </div>
@@ -341,26 +346,32 @@
   white-space: nowrap;
   overflow: hidden;
 }
-.day-row { position: relative; height: 22px; }
+.day-row { position: relative; height: 32px; }
 .day-cell {
   position: absolute;
   top: 0;
   height: 100%;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  font-size: 0.68rem;
+  gap: 1px;
   color: var(--text-muted);
   border-left: 1px solid var(--border-light);
   font-variant-numeric: tabular-nums;
 }
+.day-wd  { font-size: 0.56rem; line-height: 1; opacity: 0.85; }
+.day-num { font-size: 0.68rem; line-height: 1; }
 .day-cell.weekend { background: var(--hover); }
+.day-cell.sun .day-wd { color: var(--danger); }
+.day-cell.sat .day-wd { color: #3B82F6; }
 .day-cell.today {
   background: var(--accent);
   color: #fff;
   font-weight: 700;
   border-radius: 4px;
 }
+.day-cell.today .day-wd { color: #fff; opacity: 0.9; }
 
 /* ── 行エリア ── */
 .sched-body { position: relative; }
