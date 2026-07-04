@@ -1,4 +1,15 @@
-export type Status = 'todo' | 'doing' | 'pending' | 'done';
+// デフォルト: 'todo' | 'doing' | 'pending' | 'done'、カスタム: 'custom_<id>'
+export type Status = string;
+
+export interface StatusDef {
+  id: number;
+  key: Status;
+  name: string;
+  color: string | null;
+  is_custom: boolean;
+  show_in_today: boolean;
+  sort_order: number;
+}
 export type RecurType = 'daily' | 'weekly' | 'monthly' | 'yearly';
 export type RecurMonthRule = 'day' | 'last_day' | 'last_weekday';
 

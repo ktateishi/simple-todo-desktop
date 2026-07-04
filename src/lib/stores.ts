@@ -1,10 +1,11 @@
 import { derived, writable } from 'svelte/store';
-import type { Group, Tag, TaskWithTags, Status } from './types';
+import type { Group, StatusDef, Tag, TaskWithTags, Status } from './types';
 import { api } from './api';
 
-export const tasks  = writable<TaskWithTags[]>([]);
-export const groups = writable<Group[]>([]);
-export const tags   = writable<Tag[]>([]);
+export const tasks    = writable<TaskWithTags[]>([]);
+export const groups   = writable<Group[]>([]);
+export const tags     = writable<Tag[]>([]);
+export const statuses = writable<StatusDef[]>([]);
 
 export const prevStatusMap  = writable<Map<number, Status>>(new Map());
 export const clipboardTask  = writable<TaskWithTags | null>(null);
@@ -28,13 +29,17 @@ export const filteredTasks = derived(
     })
 );
 
-// Tasks due today or spanning today (non-done, non-pending), used for the top "今日のタスク" section
-export const todayTasks = derived(filteredTasks, ($tasks) => {
+// Tasks due today or spanning today, used for the top "今日のタスク" section.
+// Statuses with show_in_today=false (default: pending, done) are excluded.
+export const todayTasks = derived([filteredTasks, statuses], ([$tasks, $statuses]) => {
   const now      = new Date();
   const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
   const dayEnd   = dayStart + 86_400_000;
+  const hidden   = $statuses.length > 0
+    ? new Set($statuses.filter(s => !s.show_in_today).map(s => s.key))
+    : new Set<Status>(['done', 'pending']); // fallback until statuses load
   return $tasks.filter(t => {
-    if (t.status === 'done' || t.status === 'pending' || t.due_at === null) return false;
+    if (hidden.has(t.status) || t.due_at === null) return false;
     if (t.start_at !== null) {
       // Period task: show every day from start_at to due_at
       return t.start_at < dayEnd && t.due_at >= dayStart;
@@ -78,10 +83,17 @@ export const tasksByGroup = derived(
 );
 
 export async function loadAll() {
-  const [t, g, ta] = await Promise.all([api.listTasks(), api.listGroups(), api.listTags()]);
+  const [t, g, ta, st] = await Promise.all([
+    api.listTasks(), api.listGroups(), api.listTags(), api.listStatuses(),
+  ]);
   tasks.set(t);
   groups.set(g);
   tags.set(ta);
+  statuses.set(st);
+}
+
+export async function refreshStatuses() {
+  statuses.set(await api.listStatuses());
 }
 
 export async function refreshTasks() {

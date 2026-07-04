@@ -68,6 +68,17 @@ pub struct TaskUpdate {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct StatusDef {
+    pub id: i64,
+    pub key: String, // tasks.status に格納される値。デフォルトは "todo" 等、カスタムは "custom_<id>"
+    pub name: String,
+    pub color: Option<String>,
+    pub is_custom: bool,
+    pub show_in_today: bool,
+    pub sort_order: f64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Group {
     pub id: i64,
     pub name: String,

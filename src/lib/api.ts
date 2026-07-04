@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import type { Group, NewTask, Tag, TaskUpdate, TaskWithTags } from './types';
+import type { Group, NewTask, StatusDef, Tag, TaskUpdate, TaskWithTags } from './types';
 
 export const api = {
   // Tasks
@@ -17,6 +17,13 @@ export const api = {
   addGroup:     (name: string, color?: string)             => invoke<Group>('add_group', { name, color: color ?? null }),
   updateGroup:  (id: number, name: string, color?: string) => invoke<Group>('update_group', { id, name, color: color ?? null }),
   deleteGroup:  (id: number)                               => invoke<void>('delete_group', { id }),
+
+  // Statuses
+  listStatuses: ()                                                             => invoke<StatusDef[]>('list_statuses'),
+  addStatus:    (name: string, color: string | null, showInToday: boolean)     => invoke<StatusDef>('add_status', { name, color, showInToday }),
+  updateStatus: (id: number, name: string, color: string | null, showInToday: boolean) =>
+    invoke<StatusDef>('update_status', { id, name, color, showInToday }),
+  deleteStatus: (id: number)                                                   => invoke<void>('delete_status', { id }),
 
   // Tags
   listTags:  ()                              => invoke<Tag[]>('list_tags'),

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import type { TaskWithTags, Status } from '$lib/types';
-  import { prevStatusMap, clipboardTask } from '$lib/stores';
+  import type { TaskWithTags, Status, StatusDef } from '$lib/types';
+  import { prevStatusMap, clipboardTask, statuses } from '$lib/stores';
   import Circle      from 'lucide-svelte/icons/circle';
   import CircleCheck from 'lucide-svelte/icons/circle-check';
   import Trash2      from 'lucide-svelte/icons/trash-2';
@@ -30,13 +30,22 @@
     }
   }
 
-  const STATUS_LABELS: Record<Status, string> = {
+  // Fallback labels until the statuses store loads
+  const FALLBACK_LABELS: Record<string, string> = {
     todo:    '未着手',
     doing:   '進行中',
     pending: '保留',
     done:    '完了',
   };
-  const STATUS_LIST: Status[] = ['todo', 'doing', 'pending', 'done'];
+  const CUSTOM_FALLBACK_COLOR = '#64748B';
+
+  const statusDef  = $derived($statuses.find(s => s.key === task.status));
+  const statusName = $derived(statusDef?.name ?? FALLBACK_LABELS[task.status] ?? task.status);
+
+  function customBadgeStyle(def: StatusDef): string {
+    const c = def.color ?? CUSTOM_FALLBACK_COLOR;
+    return `background:${c}22;color:${c};border-color:${c}4D`;
+  }
 
   let pickerOpen = $state(false);
 
@@ -130,24 +139,29 @@
   <!-- Status badge + picker -->
   <div class="status-wrap">
     <button
-      class="status-badge s-{task.status}"
+      class="status-badge {statusDef?.is_custom ? '' : `s-${task.status}`}"
+      style={statusDef?.is_custom ? customBadgeStyle(statusDef) : ''}
       onclick={openPicker}
       title="ステータスを変更"
-      aria-label="ステータス: {STATUS_LABELS[task.status as Status]}"
+      aria-label="ステータス: {statusName}"
     >
-      {STATUS_LABELS[task.status as Status] ?? task.status}
+      {statusName}
     </button>
 
     {#if pickerOpen}
       <div class="status-picker" role="menu">
-        {#each STATUS_LIST as s}
+        {#each $statuses as s (s.id)}
           <button
-            class="picker-opt s-{s}"
-            class:current={task.status === s}
-            onclick={(e) => pickStatus(e, s)}
+            class="picker-opt {s.is_custom ? '' : `s-${s.key}`}"
+            class:current={task.status === s.key}
+            style={s.is_custom && task.status === s.key ? `color:${s.color ?? CUSTOM_FALLBACK_COLOR}` : ''}
+            onclick={(e) => pickStatus(e, s.key)}
             role="menuitem"
           >
-            {STATUS_LABELS[s]}
+            {#if s.is_custom}
+              <span class="picker-dot" style="background:{s.color ?? CUSTOM_FALLBACK_COLOR}"></span>
+            {/if}
+            {s.name}
           </button>
         {/each}
       </div>
@@ -290,6 +304,13 @@
   box-shadow: 0 6px 20px rgba(0,0,0,0.14);
   overflow: hidden;
   min-width: 88px;
+}
+.picker-dot {
+  display: inline-block;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  margin-right: 5px;
+  vertical-align: middle;
 }
 .picker-opt {
   display: block;
