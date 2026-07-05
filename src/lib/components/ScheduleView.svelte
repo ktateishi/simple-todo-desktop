@@ -417,6 +417,11 @@
   background: var(--surface);
   border-right: 1px solid var(--border);
 }
+/* ステータスピッカー展開中は、後続行の row-left (同じ z-index の
+   別スタッキングコンテキスト) に覆われないよう自身を最前面に引き上げる */
+.row-left:has(:global(.status-picker)) {
+  z-index: 50;
+}
 .row-timeline {
   position: relative;
   flex-shrink: 0;
