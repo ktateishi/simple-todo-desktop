@@ -1,6 +1,6 @@
 [package]
 name = "simple-todo"
-version = "0.1.0"
+version = "0.3.0"
 description = "Simple TODO Desktop"
 authors = ["ktateishi"]
 edition = "2021"
