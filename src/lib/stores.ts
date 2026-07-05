@@ -1,6 +1,7 @@
 import { derived, writable } from 'svelte/store';
 import type { Group, StatusDef, Tag, TaskWithTags, Status } from './types';
 import { api } from './api';
+import { startOfDay } from './dateUtils';
 
 export const tasks    = writable<TaskWithTags[]>([]);
 export const groups   = writable<Group[]>([]);
@@ -47,6 +48,14 @@ export const todayTasks = derived([filteredTasks, statuses], ([$tasks, $statuses
     // Single due-date task: show only on the due date
     return t.due_at >= dayStart && t.due_at < dayEnd;
   });
+});
+
+// Tasks whose due date has passed (completed tasks excluded), used for the
+// "期限切れ" section shown above the group/flat task lists.
+export const overdueTasks = derived([filteredTasks, sortMode], ([$tasks, $sort]) => {
+  const dayStart = startOfDay(Date.now());
+  const overdue = $tasks.filter(t => t.status !== 'done' && t.due_at !== null && t.due_at < dayStart);
+  return applySort(overdue, $sort);
 });
 
 function applySort(tasks: TaskWithTags[], sort: string): TaskWithTags[] {

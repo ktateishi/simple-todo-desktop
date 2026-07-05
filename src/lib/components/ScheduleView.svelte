@@ -1,13 +1,14 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import type { TaskWithTags, Status } from '$lib/types';
-  import { groups, statuses, sortedTasks, todayTasks } from '$lib/stores';
-  import { addDays, daysBetween, dayOfMonth, formatDate, formatMonth, startOfDay, weekday } from '$lib/dateUtils';
+  import { groups, statuses, sortedTasks, todayTasks, overdueTasks } from '$lib/stores';
+  import { addDays, daysBetween, dayOfMonth, formatDate, formatMonth, overdueLabel, startOfDay, weekday } from '$lib/dateUtils';
   import TaskItem from './TaskItem.svelte';
-  import Sun          from 'lucide-svelte/icons/sun';
-  import ChevronLeft  from 'lucide-svelte/icons/chevron-left';
-  import ChevronRight from 'lucide-svelte/icons/chevron-right';
-  import LocateFixed  from 'lucide-svelte/icons/locate-fixed';
+  import Sun           from 'lucide-svelte/icons/sun';
+  import TriangleAlert  from 'lucide-svelte/icons/triangle-alert';
+  import ChevronLeft   from 'lucide-svelte/icons/chevron-left';
+  import ChevronRight  from 'lucide-svelte/icons/chevron-right';
+  import LocateFixed   from 'lucide-svelte/icons/locate-fixed';
 
   type Props = {
     onStatusChange: (id: number, status: Status) => void;
@@ -54,11 +55,14 @@
     return daysBetween(rangeStart, ts) * DAY_W;
   }
 
-  // ── 行データ: 今日のタスク + 全タスク（フィルター/ソート適用済み） ──────
+  // ── 行データ: 今日のタスク + 期限切れタスク + 全タスク（フィルター/ソート適用済み） ──
+  type RowKind = 'today' | 'overdue' | 'all';
   const rows = $derived([
-    ...$todayTasks.map(t => ({ task: t, today: true })),
-    ...$sortedTasks.map(t => ({ task: t, today: false })),
+    ...$todayTasks.map(t => ({ task: t, kind: 'today' as RowKind })),
+    ...$overdueTasks.map(t => ({ task: t, kind: 'overdue' as RowKind })),
+    ...$sortedTasks.map(t => ({ task: t, kind: 'all' as RowKind })),
   ]);
+  const rowKeyPrefix: Record<RowKind, string> = { today: 't', overdue: 'o', all: '' };
 
   // ── バー / マイルストン ────────────────────────────────────────────────
   const DEFAULT_STATUS_COLORS: Record<string, string> = {
@@ -192,20 +196,26 @@
         <div class="sched-empty" style="width:{LEFT_W}px">タスクがありません</div>
       {/if}
 
-      {#each rows as row, i (row.today ? `t${row.task.id}` : row.task.id)}
+      {#each rows as row, i (rowKeyPrefix[row.kind] + row.task.id)}
         {@const t = row.task}
         {@const g = $groups.find(gr => gr.id === t.group_id)}
         {@const bar = barRect(t)}
         {@const mx = milestoneX(t)}
 
-        {#if row.today && (i === 0 || !rows[i - 1].today)}
-          <div class="today-section-header" style="width:{LEFT_W}px">
-            <span class="today-sun"><Sun size={13} strokeWidth={2} /></span>
-            今日のタスク
-          </div>
-        {/if}
-        {#if !row.today && i > 0 && rows[i - 1].today}
-          <div class="all-section-header" style="width:{LEFT_W}px">すべてのタスク</div>
+        {#if i === 0 || rows[i - 1].kind !== row.kind}
+          {#if row.kind === 'today'}
+            <div class="today-section-header" style="width:{LEFT_W}px">
+              <span class="today-sun"><Sun size={13} strokeWidth={2} /></span>
+              今日のタスク
+            </div>
+          {:else if row.kind === 'overdue'}
+            <div class="overdue-section-header" style="width:{LEFT_W}px">
+              <span class="overdue-warn"><TriangleAlert size={13} strokeWidth={2} /></span>
+              期限切れ
+            </div>
+          {:else}
+            <div class="all-section-header" style="width:{LEFT_W}px">すべてのタスク</div>
+          {/if}
         {/if}
 
         <div class="sched-row">
@@ -217,6 +227,7 @@
               {onEdit}
               groupLabel={g?.name}
               groupColor={g?.color ?? null}
+              extraBadge={row.kind === 'overdue' && t.due_at ? overdueLabel(t.due_at) : undefined}
             />
           </div>
           <div class="row-timeline" style="width:{timelineW}px">
@@ -430,6 +441,7 @@
 
 /* ── セクション見出し ── */
 .today-section-header,
+.overdue-section-header,
 .all-section-header {
   position: sticky;
   left: 0;
@@ -446,7 +458,9 @@
   border-bottom: 1px solid var(--border-light);
 }
 .all-section-header { color: var(--text-muted); }
+.overdue-section-header { color: var(--danger); }
 .today-sun { color: #F59E0B; display: flex; align-items: center; }
+.overdue-warn { color: var(--danger); display: flex; align-items: center; }
 
 .sched-empty {
   position: sticky;
