@@ -34,3 +34,12 @@ export function dayOfMonth(ts: number): number {
 export function weekday(ts: number): number {
   return new Date(ts).getDay();
 }
+
+/** 期限切れタスクの経過時間ラベル（例: "3時間前", "5日前"） */
+export function overdueLabel(dueAt: number): string {
+  const diffMs = Date.now() - dueAt;
+  const hours  = Math.floor(diffMs / 3_600_000);
+  if (hours < 1)  return '期限超過';
+  if (hours < 24) return `${hours}時間前`;
+  return `${Math.floor(hours / 24)}日前`;
+}

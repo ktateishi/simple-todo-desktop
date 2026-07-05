@@ -15,9 +15,10 @@
     onEdit:         (task: TaskWithTags) => void;
     groupLabel?: string;
     groupColor?: string | null;
+    extraBadge?: string;
   };
 
-  let { task, onStatusChange, onDelete, onEdit, groupLabel, groupColor }: Props = $props();
+  let { task, onStatusChange, onDelete, onEdit, groupLabel, groupColor, extraBadge }: Props = $props();
 
   function toggleComplete() {
     if (task.status === 'done') {
@@ -208,6 +209,10 @@
     </span>
   {/if}
 
+  {#if extraBadge}
+    <span class="extra-badge">{extraBadge}</span>
+  {/if}
+
   <button
     class="copy-btn"
     onclick={() => clipboardTask.set(task)}
@@ -395,6 +400,18 @@
   font-variant-numeric: tabular-nums;
 }
 .due.overdue { color: var(--danger); font-weight: 500; }
+
+/* ── Extra badge (e.g. 期限切れ経過時間) ── */
+.extra-badge {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--danger);
+  background: var(--danger-soft);
+  padding: 1px 7px;
+  border-radius: 10px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
 
 /* ── Copy / Delete buttons ── */
 .copy-btn {

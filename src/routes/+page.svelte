@@ -3,11 +3,12 @@
   import { isPermissionGranted, requestPermission }         from '@tauri-apps/plugin-notification';
   import { api } from '$lib/api';
   import {
-    tasks, groups, tags, statuses, tasksByGroup, sortedTasks, todayTasks,
+    tasks, groups, tags, statuses, tasksByGroup, sortedTasks, todayTasks, overdueTasks,
     filterStatuses, filterGroupId, filterTagId, searchQuery, sortMode, viewMode,
     clipboardTask,
     loadAll, refreshTasks, refreshTags, refreshStatuses,
   } from '$lib/stores';
+  import { overdueLabel } from '$lib/dateUtils';
   import type { TaskWithTags, Status, StatusDef, TaskUpdate } from '$lib/types';
   import QuickAdd      from '$lib/components/QuickAdd.svelte';
   import GroupSection  from '$lib/components/GroupSection.svelte';
@@ -29,6 +30,7 @@
   import X            from 'lucide-svelte/icons/x';
   import CheckSquare  from 'lucide-svelte/icons/square-check-big';
   import Sun          from 'lucide-svelte/icons/sun';
+  import TriangleAlert from 'lucide-svelte/icons/triangle-alert';
   import ArrowUp      from 'lucide-svelte/icons/arrow-up';
   import ArrowDown    from 'lucide-svelte/icons/arrow-down';
   import ArrowUpDown  from 'lucide-svelte/icons/arrow-up-down';
@@ -122,6 +124,29 @@
       );
       await refreshTasks();
     }
+  }
+
+  // ── 期限切れタスク DnD（並び替えのみ、他ゾーンからのドロップは不可）────────
+  const OVERDUE_ORDER_KEY = 'overdue_task_order';
+  const OVERDUE_DND_MS    = 150;
+  let overdueLocalItems   = $state<TaskWithTags[]>([]);
+
+  $effect(() => {
+    const current = $overdueTasks;
+    const saved: number[] = JSON.parse(localStorage.getItem(OVERDUE_ORDER_KEY) ?? '[]');
+    overdueLocalItems = [
+      ...saved.map(id => current.find(t => t.id === id)).filter((t): t is TaskWithTags => !!t),
+      ...current.filter(t => !saved.includes(t.id)),
+    ];
+  });
+
+  function handleOverdueConsider(e: CustomEvent<{ items: TaskWithTags[] }>) {
+    overdueLocalItems = e.detail.items;
+  }
+
+  function handleOverdueFinalize(e: CustomEvent<{ items: TaskWithTags[] }>) {
+    overdueLocalItems = e.detail.items;
+    localStorage.setItem(OVERDUE_ORDER_KEY, JSON.stringify(overdueLocalItems.map(t => t.id)));
   }
 
   onMount(async () => {
@@ -657,6 +682,37 @@
         onEdit={handleEdit}
       />
     {:else}
+    {#snippet overdueSection()}
+      {#if overdueLocalItems.length > 0}
+        <div class="overdue-section">
+          <div class="overdue-header">
+            <span class="overdue-icon"><TriangleAlert size={14} strokeWidth={2} /></span>
+            <span class="overdue-title">期限切れ</span>
+            <span class="overdue-count">{overdueLocalItems.length}</span>
+          </div>
+          <div
+            use:dndzone={{ items: overdueLocalItems, flipDurationMs: OVERDUE_DND_MS, type: 'tasks', dropFromOthersDisabled: true }}
+            onconsider={handleOverdueConsider}
+            onfinalize={handleOverdueFinalize}
+            class="overdue-dnd-zone"
+          >
+            {#each overdueLocalItems as task (task.id)}
+              {@const g = $groups.find(gr => gr.id === task.group_id)}
+              <TaskItem
+                {task}
+                onStatusChange={handleStatusChange}
+                onDelete={handleDelete}
+                onEdit={handleEdit}
+                groupLabel={g?.name}
+                groupColor={g?.color ?? null}
+                extraBadge={task.due_at ? overdueLabel(task.due_at) : undefined}
+              />
+            {/each}
+          </div>
+        </div>
+      {/if}
+    {/snippet}
+
     <div class="task-scroll">
 
       {#if $viewMode === 'grouped'}
@@ -691,6 +747,8 @@
           </div>
         {/if}
 
+        {@render overdueSection()}
+
         {#each $tasksByGroup.groups as group (group.id)}
           {#if ($tasksByGroup.map.get(group.id)?.length ?? 0) > 0 || $filterGroupId === group.id}
             <GroupSection
@@ -717,6 +775,8 @@
 
       {:else}
         <!-- ── 一覧表示（フラット） ───────────────────────── -->
+        {@render overdueSection()}
+
         {#each $sortedTasks as task (task.id)}
           {@const g = $groups.find(gr => gr.id === task.group_id)}
           <TaskItem
@@ -1138,6 +1198,33 @@
   font-weight: 600;
   background: rgba(245,158,11,0.15);
   color: #B45309;
+  padding: 1px 7px;
+  border-radius: 10px;
+}
+
+/* ── Overdue section ──────────────────────────── */
+.overdue-section { border-bottom: 2px solid var(--border-light); }
+.overdue-dnd-zone { outline: none; }
+.overdue-header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px 6px;
+  background: var(--bg);
+}
+.overdue-icon { color: var(--danger); display: flex; align-items: center; }
+.overdue-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--danger);
+  letter-spacing: 0.01em;
+  flex: 1;
+}
+.overdue-count {
+  font-size: 0.7rem;
+  font-weight: 600;
+  background: var(--danger-soft);
+  color: var(--danger);
   padding: 1px 7px;
   border-radius: 10px;
 }
