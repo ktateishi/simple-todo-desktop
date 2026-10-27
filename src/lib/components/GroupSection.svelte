@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { dndzone } from 'svelte-dnd-action';
+  import { dndzone, type DndEvent } from 'svelte-dnd-action';
   import type { Group, TaskWithTags, Status } from '$lib/types';
   import TaskItem from './TaskItem.svelte';
   import ChevronDown  from 'lucide-svelte/icons/chevron-down';
@@ -25,13 +25,13 @@
 
   const flipDurationMs = 150;
 
-  function handleConsider(e: CustomEvent<{ items: TaskWithTags[] }>) {
+  function handleConsider(e: CustomEvent<DndEvent<TaskWithTags>>) {
     localItems = e.detail.items;
   }
 
-  function handleFinalize(e: CustomEvent<{ items: TaskWithTags[]; info: { id: number } }>) {
+  function handleFinalize(e: CustomEvent<DndEvent<TaskWithTags>>) {
     localItems = e.detail.items;
-    const movedId = e.detail.info.id;
+    const movedId = Number(e.detail.info.id);
     const idx = localItems.findIndex(t => t.id === movedId);
     if (idx === -1) return;
     const beforeId = idx > 0                     ? localItems[idx - 1].id : undefined;

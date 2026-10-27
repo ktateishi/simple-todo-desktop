@@ -11,12 +11,75 @@ export const statuses = writable<StatusDef[]>([]);
 export const prevStatusMap  = writable<Map<number, Status>>(new Map());
 export const clipboardTask  = writable<TaskWithTags | null>(null);
 
-export const filterStatuses = writable<Set<Status>>(new Set());
-export const filterGroupId  = writable<number | null>(null);
-export const filterTagId    = writable<number | null>(null);
+const FILTER_STATUSES_KEY = 'filter_statuses';
+
+function loadFilterStatuses(): Set<Status> {
+  try {
+    const saved = JSON.parse(localStorage.getItem(FILTER_STATUSES_KEY) ?? '[]');
+    if (Array.isArray(saved)) return new Set(saved.filter(k => typeof k === 'string'));
+  } catch { /* localStorage 利用不可・破損時は絞り込みなし */ }
+  return new Set();
+}
+
+export const filterStatuses = writable<Set<Status>>(loadFilterStatuses());
+filterStatuses.subscribe(v => {
+  try { localStorage.setItem(FILTER_STATUSES_KEY, JSON.stringify([...v])); } catch { /* 無視 */ }
+});
+/** localStorage に保存される number | null の絞り込み用 store */
+function persistedId(key: string) {
+  let initial: number | null = null;
+  try {
+    const saved = localStorage.getItem(key);
+    if (saved !== null && Number.isInteger(Number(saved))) initial = Number(saved);
+  } catch { /* localStorage 利用不可時は絞り込みなし */ }
+
+  const store = writable<number | null>(initial);
+  store.subscribe(v => {
+    try {
+      if (v === null) localStorage.removeItem(key);
+      else localStorage.setItem(key, String(v));
+    } catch { /* 無視 */ }
+  });
+  return store;
+}
+
+export const filterGroupId = persistedId('filter_group_id');
+export const filterTagId   = persistedId('filter_tag_id');
 export const searchQuery    = writable<string>('');
-export const sortMode       = writable<'manual' | 'due_asc' | 'due_desc' | 'priority_desc'>('manual');
-export const viewMode       = writable<'grouped' | 'flat' | 'schedule'>('grouped');
+export type SortMode = 'manual' | 'due_asc' | 'due_desc' | 'priority_desc';
+export type ViewMode = 'grouped' | 'flat' | 'schedule';
+
+const SORT_MODE_KEY = 'sort_mode';
+const SORT_MODES: SortMode[] = ['manual', 'due_asc', 'due_desc', 'priority_desc'];
+
+function loadSortMode(): SortMode {
+  try {
+    const saved = localStorage.getItem(SORT_MODE_KEY);
+    if (SORT_MODES.includes(saved as SortMode)) return saved as SortMode;
+  } catch { /* localStorage 利用不可時はデフォルト */ }
+  return 'manual';
+}
+
+export const sortMode = writable<SortMode>(loadSortMode());
+sortMode.subscribe(v => {
+  try { localStorage.setItem(SORT_MODE_KEY, v); } catch { /* 無視 */ }
+});
+
+const VIEW_MODE_KEY = 'view_mode';
+const VIEW_MODES: ViewMode[] = ['grouped', 'flat', 'schedule'];
+
+function loadViewMode(): ViewMode {
+  try {
+    const saved = localStorage.getItem(VIEW_MODE_KEY);
+    if (VIEW_MODES.includes(saved as ViewMode)) return saved as ViewMode;
+  } catch { /* localStorage 利用不可時はデフォルト */ }
+  return 'grouped';
+}
+
+export const viewMode = writable<ViewMode>(loadViewMode());
+viewMode.subscribe(v => {
+  try { localStorage.setItem(VIEW_MODE_KEY, v); } catch { /* 無視 */ }
+});
 
 export const filteredTasks = derived(
   [tasks, filterStatuses, filterGroupId, filterTagId, searchQuery],
@@ -99,6 +162,15 @@ export async function loadAll() {
   groups.set(g);
   tags.set(ta);
   statuses.set(st);
+
+  // 保存済みの絞り込みから、存在しなくなったグループ・タグ・ステータスを取り除く
+  filterGroupId.update(prev => (prev !== null && !g.some(x => x.id === prev) ? null : prev));
+  filterTagId.update(prev => (prev !== null && !ta.some(x => x.id === prev) ? null : prev));
+  const keys = new Set(st.map(d => d.key));
+  filterStatuses.update(prev => {
+    const next = new Set([...prev].filter(k => keys.has(k)));
+    return next.size === prev.size ? prev : next;
+  });
 }
 
 export async function refreshStatuses() {
