@@ -105,15 +105,14 @@
 <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
 <div
   class="overlay"
-  onclick={onCancel}
+  onclick={(e) => { if (e.target === e.currentTarget) onCancel(); }}
   onkeydown={onOverlayKeydown}
   role="dialog"
   aria-modal="true"
   aria-label="タスクを編集"
   tabindex="-1"
 >
-  <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-  <div class="modal" onclick={(e) => e.stopPropagation()}>
+  <div class="modal">
 
     <!-- Header -->
     <div class="modal-header">
