@@ -8,7 +8,7 @@
     clipboardTask,
     loadAll, refreshTasks, refreshTags, refreshStatuses,
   } from '$lib/stores';
-  import { overdueLabel } from '$lib/dateUtils';
+  import { overdueLabel, startOfDay } from '$lib/dateUtils';
   import type { TaskWithTags, Status, StatusDef, TaskUpdate } from '$lib/types';
   import QuickAdd      from '$lib/components/QuickAdd.svelte';
   import GroupSection  from '$lib/components/GroupSection.svelte';
@@ -172,6 +172,7 @@
     await api.addTask({
       title,
       group_id: groupId,
+      due_at: startOfDay(Date.now()),
       new_tag_names: tagNames.length > 0 ? tagNames : undefined,
     });
     await Promise.all([refreshTasks(), refreshTags()]);
